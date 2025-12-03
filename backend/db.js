@@ -4,8 +4,8 @@ const mysql = pkg.default || pkg;
 
 const pool = mysql.createPool({
 	host: 'localhost',         
-	user: 'smecik',         
-	password: 'zaq1@WSX', 
+	user: 'root',         
+	password: '', 
 	database: 'BetON', 
 	waitForConnections: true,
 	connectionLimit: 10,       
