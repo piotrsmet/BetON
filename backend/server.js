@@ -1,13 +1,33 @@
 import express from 'express'
 import cors from 'cors'
+import session from 'express-session'
 import path, { dirname, join } from 'path'
 import { fileURLToPath } from 'url'
 import bcrypt from 'bcrypt'
 import db from './db.js'
 
 const app = express()
-app.use(cors())
+app.use(
+	cors({
+		origin: ['http://localhost:5173', 'http://localhost:5000'],
+		credentials: true,
+	})
+)
+
 app.use(express.json())
+
+app.use(
+	session({
+		secret: 'twoj-sekretny-klucz-zmien-na-produkcji',
+		resave: false,
+		saveUninitialized: false,
+		cookie: {
+			secure: false,
+			httpOnly: true,
+			maxAge: 1000 * 60 * 60 * 24 * 7,
+		},
+	})
+)
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
@@ -15,7 +35,7 @@ const __dirname = dirname(__filename)
 app.use(express.static(join(__dirname, '')))
 app.use(express.static(join(__dirname, '../frontend/dist')))
 
-app.get('/uzytkownicy', async (req, res) => {
+app.get('/api/uzytkownicy', async (req, res) => {
 	try {
 		const [rows] = await db.query('SELECT * FROM uzytkownicy')
 		res.json(rows)
@@ -70,29 +90,62 @@ app.post('/api/register', async (req, res) => {
 })
 
 app.post('/api/login', async (req, res) => {
-  const { username, password } = req.body
-  try {
-    const [rows] = await db.query(
-      'SELECT * FROM uzytkownicy WHERE nazwa = ?',
-      [username]
-    )
+	const { username, password } = req.body
+	try {
+		const [rows] = await db.query(
+			'SELECT * FROM uzytkownicy WHERE nazwa = ?',
+			[username]
+		)
 
-    if (rows.length === 0) {
-      return res.status(400).json({ error: 'Nieprawidłowa nazwa użytkownika lub hasło' })
-    }
+		if (rows.length === 0) {
+			return res
+				.status(400)
+				.json({ error: 'Nieprawidłowa nazwa użytkownika lub hasło' })
+		}
 
-    const user = rows[0]
-    const passwordMatch = await bcrypt.compare(password, user.haslo)
+		const user = rows[0]
+		const passwordMatch = await bcrypt.compare(password, user.haslo)
 
-    if (!passwordMatch) {
-      return res.status(400).json({ error: 'Nieprawidłowa nazwa użytkownika lub hasło' })
-    }
+		if (!passwordMatch) {
+			return res
+				.status(400)
+				.json({ error: 'Nieprawidłowa nazwa użytkownika lub hasło' })
+		}
 
-    res.status(200).json({ message: 'Zalogowano pomyślnie', userId: user.id })
-  } catch (err) {
-    console.error('Błąd podczas logowania:', err)
-    res.status(500).json({ error: 'Błąd serwera' })
-  }
+		req.session.userId = user.id
+		req.session.username = user.nazwa
+
+		res.status(200).json({
+			message: 'Zalogowano pomyślnie',
+			userId: user.id,
+			username: user.nazwa,
+		})
+	} catch (err) {
+		console.error('Błąd podczas logowania:', err)
+		res.status(500).json({ error: 'Błąd serwera' })
+	}
+})
+
+app.get('/api/check-session', (req, res) => {
+	if (req.session.userId) {
+		res.json({
+			isLoggedIn: true,
+			userId: req.session.userId,
+			username: req.session.username,
+		})
+	} else {
+		res.json({ isLoggedIn: false })
+	}
+})
+
+app.post('/api/logout', (req, res) => {
+	req.session.destroy(err => {
+		if (err) {
+			return res.status(500).json({ error: 'Błąd podczas wylogowania' })
+		}
+		res.clearCookie('connect.sid')
+		res.json({ message: 'Wylogowano pomyślnie' })
+	})
 })
 
 app.get('/', (req, res) => {
