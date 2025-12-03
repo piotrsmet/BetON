@@ -1,0 +1,116 @@
+.match-list {
+  padding: 1rem 0;
+}
+
+.section-title {
+  font-size: 1.2rem;
+  margin-bottom: 1rem;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.matches-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1rem;
+}
+
+.match-card {
+  background: #1e1e2e;
+  border-radius: 12px;
+  padding: 1.5rem;
+  border: 1px solid #333;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.match-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+  border-color: #555;
+}
+
+/* Flashing effects for odds changes */
+.match-card.flash-up {
+  animation: flashGreen 0.5s ease;
+}
+
+.match-card.flash-down {
+  animation: flashRed 0.5s ease;
+}
+
+@keyframes flashGreen {
+  0% { border-color: #00ff88; box-shadow: 0 0 15px rgba(0, 255, 136, 0.3); }
+  100% { border-color: #333; }
+}
+
+@keyframes flashRed {
+  0% { border-color: #ff0055; box-shadow: 0 0 15px rgba(255, 0, 85, 0.3); }
+  100% { border-color: #333; }
+}
+
+.match-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+  font-size: 0.8rem;
+  color: #888;
+}
+
+.league-badge {
+  background: #333;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  color: #ccc;
+}
+
+.teams {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  font-weight: 600;
+  font-size: 1.1rem;
+}
+
+.vs {
+  color: #555;
+  font-size: 0.8rem;
+}
+
+.odds-container {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 0.5rem;
+}
+
+.odd-btn {
+  background: #2a2a3a;
+  border: 1px solid #444;
+  border-radius: 8px;
+  padding: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  color: white;
+}
+
+.odd-btn:hover {
+  background: #3a3a4a;
+  border-color: #666;
+}
+
+.odd-label {
+  font-size: 0.7rem;
+  color: #888;
+}
+
+.odd-value {
+  font-weight: 700;
+  color: #ffcc00;
+}

@@ -119,6 +119,7 @@ app.post('/api/login', async (req, res) => {
 			message: 'Zalogowano pomyślnie',
 			userId: user.id,
 			username: user.nazwa,
+			balance: user.saldo
 		})
 	} catch (err) {
 		console.error('Błąd podczas logowania:', err)
@@ -126,13 +127,31 @@ app.post('/api/login', async (req, res) => {
 	}
 })
 
-app.get('/api/check-session', (req, res) => {
+app.get('/api/check-session', async (req, res) => {
 	if (req.session.userId) {
-		res.json({
-			isLoggedIn: true,
-			userId: req.session.userId,
-			username: req.session.username,
-		})
+		try {
+			const [rows] = await db.query(
+				'SELECT id, nazwa, saldo FROM uzytkownicy WHERE id = ?',
+				[req.session.userId]
+			)
+			
+			if (rows.length > 0) {
+				const user = rows[0];
+				res.json({
+					isLoggedIn: true,
+					userId: user.id,
+					username: user.nazwa,
+					balance: user.saldo
+				})
+			} else {
+				// User not found in DB (maybe deleted), destroy session
+				req.session.destroy();
+				res.json({ isLoggedIn: false })
+			}
+		} catch (err) {
+			console.error('Błąd podczas sprawdzania sesji:', err);
+			res.status(500).json({ error: 'Błąd serwera' });
+		}
 	} else {
 		res.json({ isLoggedIn: false })
 	}

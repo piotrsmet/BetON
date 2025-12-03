@@ -1,0 +1,14 @@
+.link-button {
+  background: none;
+  border: none;
+  color: #93c5fd;
+  text-decoration: none;
+  cursor: pointer;
+  font-size: 0.875rem;
+  padding: 0;
+}
+
+.link-button:hover {
+  text-decoration: underline;
+  color: #60a5fa;
+}
