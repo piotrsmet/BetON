@@ -39,21 +39,6 @@ export const Dashboard = ({ user, onLogout }) => {
             <p className="font-semibold text-lg mb-2 text-light/60">Twój kupon jest pusty</p>
             <small className="text-sm mt-1">Kliknij na kurs, aby dodać zakład</small>
           </div>
-
-          {/* Promocje */}
-          <div className="p-5 border-t border-accent/10 space-y-3">
-            <div className="bg-gradient-to-br from-accent to-emerald rounded-2xl p-4 text-center shadow-lg hover:shadow-accent/30 transition-all cursor-pointer">
-              <div className="text-3xl mb-2">💰</div>
-              <p className="font-bold text-dark text-sm mb-1">BONUS +50%</p>
-              <small className="text-dark/80 text-xs font-medium">Do wygranych AKO</small>
-            </div>
-            
-            <div className="bg-secondary rounded-2xl p-4 border border-purple/30 shadow-md hover:shadow-purple/20 transition-all cursor-pointer">
-              <div className="text-2xl mb-2">🎰</div>
-              <p className="font-bold text-purple text-sm mb-1">CASINO LIVE</p>
-              <small className="text-light/60 text-xs">Graj na żywo z krupierem</small>
-            </div>
-          </div>
         </aside>
       </div>
     </div>
