@@ -39,12 +39,12 @@ export const MatchList = () => {
   }, []);
 
   return (
-    <div className="py-4">
-      <h3 className="text-2xl mb-6 text-white flex items-center gap-3 font-bold">
-        <span className="text-3xl">🔥</span> 
-        NA ŻYWO / HITY DNIA
+    <div className="py-2 md:py-4">
+      <h3 className="text-xl md:text-2xl mb-4 md:mb-6 text-white flex items-center gap-2 md:gap-3 font-bold">
+        <span className="text-2xl md:text-3xl">🔥</span> 
+        <span>Top mecze na żywo</span>
       </h3>
-      <div className="grid grid-cols-1 gap-4">
+      <div className="grid grid-cols-1 gap-3 md:gap-4">
         {matches.map(match => {
           const flashClass = match.lastChange === 'up' 
             ? 'animate-[flashGreen_0.5s_ease]' 
@@ -55,31 +55,31 @@ export const MatchList = () => {
           return (
             <div 
               key={match.id} 
-              className={`bg-secondary rounded-xl p-6 border-2 border-accent/20 hover:-translate-y-1 hover:shadow-2xl hover:border-accent transition-all duration-300 relative overflow-hidden ${flashClass}`}
+              className={`bg-secondary/50 backdrop-blur-sm rounded-2xl p-4 md:p-6 border border-accent/10 hover:-translate-y-1 hover:shadow-2xl hover:shadow-accent/10 hover:border-accent/30 transition-all duration-300 relative overflow-hidden ${flashClass}`}
             >
-              <div className="flex justify-between mb-4 text-sm text-light/60">
-                <span className="bg-accent/30 px-3 py-1 rounded-md text-light font-medium">{match.league}</span>
-                <span className="font-medium">{match.time}</span>
+              <div className="flex justify-between mb-3 md:mb-4 text-xs md:text-sm">
+                <span className="bg-primary/80 text-accent px-2 md:px-3 py-1 rounded-full font-bold border border-accent/20">{match.league}</span>
+                <span className="font-medium text-light/60">{match.time}</span>
               </div>
               
-              <div className="flex justify-between items-center mb-6 text-xl">
-                <div className="text-white font-bold flex-1">{match.home}</div>
-                <div className="text-accent/70 text-sm mx-4 font-black">VS</div>
-                <div className="text-white font-bold flex-1 text-right">{match.away}</div>
+              <div className="flex justify-between items-center mb-4 md:mb-6 text-base md:text-xl">
+                <div className="text-white font-bold flex-1 truncate pr-2">{match.home}</div>
+                <div className="text-accent text-xs md:text-sm mx-2 md:mx-4 font-bold flex-shrink-0">VS</div>
+                <div className="text-white font-bold flex-1 text-right truncate pl-2">{match.away}</div>
               </div>
 
-              <div className="grid grid-cols-3 gap-3">
-                <button className="bg-primary border-2 border-accent/30 rounded-lg p-4 flex flex-col items-center hover:bg-accent hover:border-accent transition-all text-white group">
-                  <span className="text-xs text-light/60 mb-1 font-medium">1</span>
-                  <span className="font-bold text-2xl text-accent group-hover:text-white">{match.odds.home.toFixed(2)}</span>
+              <div className="grid grid-cols-3 gap-2 md:gap-3">
+                <button className="bg-primary/60 border border-blue/30 rounded-xl p-2 md:p-4 flex flex-col items-center hover:bg-blue/20 hover:border-blue transition-all group">
+                  <span className="text-xs text-light/60 mb-1 font-medium group-hover:text-blue">1</span>
+                  <span className="font-bold text-lg md:text-2xl text-white group-hover:text-blue">{match.odds.home.toFixed(2)}</span>
                 </button>
-                <button className="bg-primary border-2 border-accent/30 rounded-lg p-4 flex flex-col items-center hover:bg-accent hover:border-accent transition-all text-white group">
-                  <span className="text-xs text-light/60 mb-1 font-medium">X</span>
-                  <span className="font-bold text-2xl text-accent group-hover:text-white">{match.odds.draw.toFixed(2)}</span>
+                <button className="bg-primary/60 border border-amber/30 rounded-xl p-2 md:p-4 flex flex-col items-center hover:bg-amber/20 hover:border-amber transition-all group">
+                  <span className="text-xs text-light/60 mb-1 font-medium group-hover:text-amber">X</span>
+                  <span className="font-bold text-lg md:text-2xl text-white group-hover:text-amber">{match.odds.draw.toFixed(2)}</span>
                 </button>
-                <button className="bg-primary border-2 border-accent/30 rounded-lg p-4 flex flex-col items-center hover:bg-accent hover:border-accent transition-all text-white group">
-                  <span className="text-xs text-light/60 mb-1 font-medium">2</span>
-                  <span className="font-bold text-2xl text-accent group-hover:text-white">{match.odds.away.toFixed(2)}</span>
+                <button className="bg-primary/60 border border-rose/30 rounded-xl p-2 md:p-4 flex flex-col items-center hover:bg-rose/20 hover:border-rose transition-all group">
+                  <span className="text-xs text-light/60 mb-1 font-medium group-hover:text-rose">2</span>
+                  <span className="font-bold text-lg md:text-2xl text-white group-hover:text-rose">{match.odds.away.toFixed(2)}</span>
                 </button>
               </div>
             </div>

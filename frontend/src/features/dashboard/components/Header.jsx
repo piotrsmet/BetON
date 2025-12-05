@@ -29,35 +29,35 @@ export const Header = ({ username, balance, onLogout }) => {
   }, [balance]);
 
   return (
-    <header className="flex justify-between items-center px-8 py-4 bg-primary/95 backdrop-blur-md border-b border-light/10 sticky top-0 z-50 shadow-2xl">
+    <header className="flex flex-wrap justify-between items-center px-4 md:px-6 lg:px-8 py-3 md:py-4 bg-secondary/90 backdrop-blur-xl border-b border-accent/10 sticky top-0 z-50 shadow-xl gap-3">
       <div className="flex items-center gap-2">
-        <span className="text-3xl font-black bg-gradient-to-r from-accent to-light bg-clip-text text-transparent uppercase tracking-tight">
+        <span className="text-2xl md:text-3xl font-black bg-gradient-to-r from-accent to-emerald bg-clip-text text-transparent uppercase tracking-tight">
           BetON
         </span>
-        <span className="text-xs bg-secondary px-2 py-1 rounded text-light/70 tracking-wider">
-          CASINO & SPORT
+        <span className="text-xs bg-accent/10 text-accent px-2 py-1 rounded-full tracking-wider hidden sm:inline font-bold">
+          LIVE
         </span>
       </div>
       
-      <div className="flex items-center gap-6">
-        <div className="relative bg-gradient-to-b from-secondary to-primary px-4 py-2 rounded-lg border border-accent/40 min-w-[120px] overflow-hidden">
-          <span className="text-xs text-light/60 uppercase block">SALDO</span>
-          <span className="font-mono text-xl font-bold text-accent block">
+      <div className="flex items-center gap-2 md:gap-4 lg:gap-6">
+        <div className="relative bg-gradient-to-br from-secondary to-primary px-3 md:px-4 py-2 rounded-xl border border-accent/20 min-w-[100px] md:min-w-[120px] overflow-hidden shadow-lg">
+          <span className="text-xs text-accent uppercase block font-bold">Saldo</span>
+          <span className="font-mono text-lg md:text-xl font-bold text-white block">
             {displayBalance.toFixed(2)} PLN
           </span>
-          <div className="absolute top-0 left-[-100%] w-1/2 h-full bg-gradient-to-r from-transparent via-white/10 to-transparent skew-x-[-20deg] animate-[shine_3s_infinite]" />
+          <div className="absolute top-0 left-[-100%] w-1/2 h-full bg-gradient-to-r from-transparent via-accent/10 to-transparent skew-x-[-20deg] animate-[shine_3s_infinite]" />
         </div>
         
-        <div className="flex items-center gap-2">
-          <div className="w-9 h-9 bg-gradient-to-br from-accent to-secondary rounded-full flex items-center justify-center font-bold text-white border-2 border-light/20">
+        <div className="hidden md:flex items-center gap-2">
+          <div className="w-9 h-9 bg-gradient-to-br from-accent to-emerald rounded-full flex items-center justify-center font-bold text-dark shadow-lg">
             {username ? username[0].toUpperCase() : 'U'}
           </div>
-          <span className="font-medium text-light">{username}</span>
+          <span className="font-medium text-white hidden lg:inline">{username}</span>
         </div>
 
         <button 
           onClick={onLogout}
-          className="bg-transparent border border-accent/40 text-light/80 hover:border-accent/60 hover:text-white hover:bg-light/5 px-4 py-2 rounded-md text-sm transition-all"
+          className="bg-primary border border-accent/20 text-light hover:bg-secondary hover:border-accent/40 px-3 md:px-4 py-2 rounded-xl text-xs md:text-sm transition-all font-medium shadow-md"
         >
           Wyloguj
         </button>

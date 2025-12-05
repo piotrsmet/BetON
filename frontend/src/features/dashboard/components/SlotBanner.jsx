@@ -4,9 +4,9 @@ export const SlotBanner = () => {
   const [activeItem, setActiveItem] = useState(0);
   
   const items = [
-    { title: "JACKPOT", subtitle: "Wygraj 1,000,000 PLN", color: "#715A5A" },
-    { title: "SUPER KURS", subtitle: "Real Madryt vs Barcelona", color: "#44444E" },
-    { title: "BONUS", subtitle: "+100% do pierwszego depozytu", color: "#37353E" }
+    { title: "JACKPOT", subtitle: "Wygraj 1,000,000 PLN 💎", gradient: "from-purple to-indigo", glowColor: "purple" },
+    { title: "SUPER KURS", subtitle: "Real Madryt vs Barcelona ⚽", gradient: "from-blue to-indigo", glowColor: "blue" },
+    { title: "BONUS", subtitle: "+100% do pierwszego depozytu 🎁", gradient: "from-accent to-emerald", glowColor: "accent" }
   ];
 
   useEffect(() => {
@@ -17,7 +17,7 @@ export const SlotBanner = () => {
   }, []);
 
   return (
-    <div className="h-[240px] w-full overflow-hidden relative bg-gradient-to-br from-secondary to-secondary/80 rounded-2xl mb-8 shadow-2xl border-2 border-accent/30">
+    <div className="h-[180px] md:h-[220px] lg:h-[240px] w-full overflow-hidden relative bg-secondary/50 backdrop-blur-xl rounded-3xl mb-6 md:mb-8 shadow-2xl border border-accent/10">
       <div 
         className="h-full transition-transform duration-700 ease-[cubic-bezier(0.34,1.56,0.64,1)]" 
         style={{ transform: `translateY(-${activeItem * 100}%)` }}
@@ -25,27 +25,24 @@ export const SlotBanner = () => {
         {items.map((item, index) => (
           <div 
             key={index} 
-            className="h-[240px] flex flex-col items-center justify-center relative border-l-8 overflow-hidden"
-            style={{ borderColor: item.color }}
+            className={`h-[180px] md:h-[220px] lg:h-[240px] flex flex-col items-center justify-center relative overflow-hidden px-4`}
           >
             <div 
-              className="absolute inset-0 opacity-20 blur-[60px]" 
-              style={{ background: item.color }}
+              className={`absolute inset-0 opacity-10 bg-gradient-to-br ${item.gradient} blur-3xl`}
             />
-            <h2 className="text-6xl font-black text-white z-10 uppercase drop-shadow-[0_4px_20px_rgba(0,0,0,0.8)] animate-pulse tracking-wider mb-2">
+            <h2 className={`text-3xl md:text-5xl lg:text-6xl font-black z-10 uppercase tracking-wider mb-2 text-center bg-gradient-to-r ${item.gradient} bg-clip-text text-transparent`}>
               {item.title}
             </h2>
-            <p className="text-2xl text-light z-10 mb-6 font-medium">{item.subtitle}</p>
-            <button className="z-10 px-10 py-4 bg-white text-black rounded-full font-extrabold text-lg hover:scale-110 transition-transform shadow-[0_0_25px_rgba(255,255,255,0.5)] hover:shadow-[0_0_35px_rgba(255,255,255,0.8)]">
-              SPRAWDŹ TERAZ
+            <p className="text-base md:text-xl lg:text-2xl text-light/80 z-10 mb-4 md:mb-6 font-semibold text-center">{item.subtitle}</p>
+            <button className={`z-10 px-6 md:px-8 lg:px-10 py-3 md:py-4 bg-gradient-to-r ${item.gradient} text-white rounded-full font-bold text-sm md:text-base lg:text-lg hover:scale-105 hover:shadow-2xl hover:shadow-${item.glowColor}/50 transition-all shadow-lg`}>
+              Sprawdź teraz →
             </button>
           </div>
         ))}
       </div>
       
-      {/* Decorative lights */}
-      <div className="absolute top-0 left-0 w-full h-2 bg-[repeating-linear-gradient(90deg,#715A5A_0px,#715A5A_10px,transparent_10px,transparent_20px)] animate-[marquee_1s_linear_infinite]" />
-      <div className="absolute bottom-0 left-0 w-full h-2 bg-[repeating-linear-gradient(90deg,#715A5A_0px,#715A5A_10px,transparent_10px,transparent_20px)] animate-[marquee_1s_linear_infinite_reverse]" />
+      {/* Animated gradient line */}
+      <div className="absolute bottom-0 left-0 w-full h-1 bg-gradient-to-r from-accent via-purple to-blue animate-[marquee_3s_linear_infinite]" style={{ backgroundSize: '200% 100%' }} />
     </div>
   );
 };
