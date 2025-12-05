@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { LoginScreen } from './features/auth/LoginScreen';
 import { RegisterScreen } from './features/auth/RegisterScreen';
 import { Dashboard } from './features/dashboard/Dashboard';
+import { LoginAnimation } from './components/layout/LoginAnimation';
 import { apiClient } from './api/client';
 import { Loader } from './components/ui/Loader';
 import './App.css';
@@ -11,6 +12,7 @@ function App() {
   const [user, setUser] = useState(null);
   const [isCheckingSession, setIsCheckingSession] = useState(true);
   const [isTransitioning, setIsTransitioning] = useState(false);
+  const [showLoginAnimation, setShowLoginAnimation] = useState(false);
 
   useEffect(() => {
     const checkUserSession = async () => {
@@ -32,11 +34,12 @@ function App() {
 
   const handleLoginSuccess = (userData) => {
     setUser(userData);
-    setIsTransitioning(true);
-    setTimeout(() => {
-      setCurrentScreen('dashboard');
-      setTimeout(() => setIsTransitioning(false), 100);
-    }, 400);
+    setShowLoginAnimation(true);
+  };
+
+  const handleAnimationComplete = () => {
+    setShowLoginAnimation(false);
+    setCurrentScreen('dashboard');
   };
 
   const handleLogout = async () => {
@@ -63,6 +66,10 @@ function App() {
 
   return (
     <div className="app relative overflow-hidden">
+      {showLoginAnimation && (
+        <LoginAnimation onComplete={handleAnimationComplete} />
+      )}
+      
       <div 
         className={`transition-opacity duration-500 ease-in-out ${
           isTransitioning 

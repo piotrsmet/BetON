@@ -11,3 +11,31 @@
   justify-content: center;
   background-color: #0f172a;
 }
+
+/* Login Animation Keyframes */
+@keyframes expandRing {
+  0% {
+    width: 0;
+    height: 0;
+    opacity: 1;
+  }
+  100% {
+    width: 600px;
+    height: 600px;
+    opacity: 0;
+  }
+}
+
+@keyframes explodeParticle {
+  0% {
+    transform: translate(0, 0);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(
+      calc(cos(var(--angle)) * var(--distance)), 
+      calc(sin(var(--angle)) * var(--distance))
+    );
+    opacity: 0;
+  }
+}
