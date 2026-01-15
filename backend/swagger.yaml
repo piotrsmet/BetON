@@ -1,0 +1,125 @@
+openapi: 3.0.0
+info:
+    title: BetON API
+    version: 1.0.0
+    description: API documentation for BetON application
+servers:
+    - url: http://localhost:5000/api
+      description: Local server
+tags:
+    - name: Auth
+      description: Authentication API
+    - name: Users
+      description: User management API
+paths:
+    /register:
+        post:
+            summary: Register a new user
+            tags: [Auth]
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required:
+                                - username
+                                - email
+                                - password
+                            properties:
+                                username:
+                                    type: string
+                                email:
+                                    type: string
+                                    format: email
+                                password:
+                                    type: string
+                                    format: password
+            responses:
+                201:
+                    description: User registered successfully
+                400:
+                    description: Username or email already exists
+                500:
+                    description: Server error
+    /login:
+        post:
+            summary: Login a user
+            tags: [Auth]
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required:
+                                - username
+                                - password
+                            properties:
+                                username:
+                                    type: string
+                                password:
+                                    type: string
+                                    format: password
+            responses:
+                200:
+                    description: Logged in successfully
+                400:
+                    description: Invalid credentials
+                500:
+                    description: Server error
+    /check-session:
+        get:
+            summary: Check current session status
+            tags: [Auth]
+            responses:
+                200:
+                    description: Session status
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    isLoggedIn:
+                                        type: boolean
+                                    userId:
+                                        type: integer
+                                    username:
+                                        type: string
+                                    balance:
+                                        type: number
+                500:
+                    description: Server error
+    /logout:
+        post:
+            summary: Logout current user
+            tags: [Auth]
+            responses:
+                200:
+                    description: Logged out successfully
+                500:
+                    description: Server error
+    /uzytkownicy:
+        get:
+            summary: Get all users
+            tags: [Users]
+            responses:
+                200:
+                    description: List of all users
+                    content:
+                        application/json:
+                            schema:
+                                type: array
+                                items:
+                                    type: object
+                                    properties:
+                                        id:
+                                            type: integer
+                                        nazwa:
+                                            type: string
+                                        email:
+                                            type: string
+                                        saldo:
+                                            type: number
+                500:
+                    description: Server error

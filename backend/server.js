@@ -3,6 +3,7 @@ import cors from 'cors'
 import session from 'express-session'
 import path, { dirname, join } from 'path'
 import { fileURLToPath } from 'url'
+import { setupSwagger } from './swagger.js'
 import authRoutes from './routes/authRoutes.js'
 import userRoutes from './routes/userRoutes.js'
 
@@ -15,6 +16,8 @@ app.use(
 )
 
 app.use(express.json())
+
+setupSwagger(app)
 
 app.use(
 	session({
