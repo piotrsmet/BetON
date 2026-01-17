@@ -40,8 +40,18 @@ export const Header = ({ username, balance, onLogout }) => {
       </div>
       
       <div className="flex items-center gap-2 md:gap-4 lg:gap-6">
-        <div className="relative bg-gradient-to-br from-secondary to-primary px-3 md:px-4 py-2 rounded-xl border border-accent/20 min-w-[100px] md:min-w-[120px] overflow-hidden shadow-lg">
-          <span className="text-xs text-accent uppercase block font-bold">Saldo</span>
+        <div className="relative bg-gradient-to-br from-secondary to-primary px-3 md:px-4 py-2 rounded-xl border border-accent/20 min-w-[100px] md:min-w-[120px] overflow-hidden shadow-lg group cursor-pointer" 
+             onClick={async () => {
+                 try {
+                     const { apiClient } = await import('../../../api/client');
+                     await apiClient.deposit(100);
+                     window.location.reload(); 
+                 } catch (e) {
+                     alert('Błąd doładowania');
+                 }
+             }}>
+          <span className="text-xs text-accent uppercase block font-bold group-hover:hidden">Saldo</span>
+          <span className="text-xs text-emerald-400 uppercase hidden group-hover:block font-bold center">+100 PLN</span>
           <span className="font-mono text-lg md:text-xl font-bold text-white block">
             {displayBalance.toFixed(2)} PLN
           </span>

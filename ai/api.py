@@ -27,7 +27,7 @@ api = Api(
 ns_main = api.namespace('api', description='Główne operacje')
 
 # Inicjalizacja symulatora
-DATA_PATH = os.environ.get('DATA_PATH', '/app')
+DATA_PATH = os.environ.get('DATA_PATH', os.path.dirname(os.path.abspath(__file__)))
 simulator = MatchSimulator(data_path=DATA_PATH)
 
 # ============== MODELE ==============

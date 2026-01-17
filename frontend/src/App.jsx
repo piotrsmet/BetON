@@ -5,6 +5,7 @@ import { Dashboard } from './features/dashboard/Dashboard';
 import { LoginAnimation } from './components/layout/LoginAnimation';
 import { apiClient } from './api/client';
 import { Loader } from './components/ui/Loader';
+import { BettingProvider } from './context/BettingContext';
 import './App.css';
 
 function App() {
@@ -65,34 +66,36 @@ function App() {
   }
 
   return (
-    <div className="app relative overflow-hidden">
-      {showLoginAnimation && (
-        <LoginAnimation onComplete={handleAnimationComplete} />
-      )}
-      
-      <div 
-        className={`transition-opacity duration-500 ease-in-out ${
-          isTransitioning 
-            ? 'opacity-0' 
-            : 'opacity-100'
-        }`}
-      >
-        {currentScreen === 'login' && (
-          <LoginScreen 
-            onSwitchToRegister={() => setCurrentScreen('register')} 
-            onLoginSuccess={handleLoginSuccess}
-          />
+    <BettingProvider>
+      <div className="app relative overflow-hidden">
+        {showLoginAnimation && (
+          <LoginAnimation onComplete={handleAnimationComplete} />
         )}
         
-        {currentScreen === 'register' && (
-          <RegisterScreen onSwitchToLogin={() => setCurrentScreen('login')} />
-        )}
+        <div 
+          className={`transition-opacity duration-500 ease-in-out ${
+            isTransitioning 
+              ? 'opacity-0' 
+              : 'opacity-100'
+          }`}
+        >
+          {currentScreen === 'login' && (
+            <LoginScreen 
+              onSwitchToRegister={() => setCurrentScreen('register')} 
+              onLoginSuccess={handleLoginSuccess}
+            />
+          )}
+          
+          {currentScreen === 'register' && (
+            <RegisterScreen onSwitchToLogin={() => setCurrentScreen('login')} />
+          )}
 
-        {currentScreen === 'dashboard' && (
-          <Dashboard user={user} onLogout={handleLogout} />
-        )}
+          {currentScreen === 'dashboard' && (
+            <Dashboard user={user} onLogout={handleLogout} />
+          )}
+        </div>
       </div>
-    </div>
+    </BettingProvider>
   );
 }
 

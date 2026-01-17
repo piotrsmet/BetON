@@ -11,6 +11,12 @@ tags:
       description: Authentication API
     - name: Users
       description: User management API
+    - name: Matches
+      description: Match management and stats API
+    - name: Betting
+      description: Coupons and betting API
+    - name: Wallet
+      description: Wallet and transactions API
 paths:
     /register:
         post:
@@ -123,3 +129,184 @@ paths:
                                             type: number
                 500:
                     description: Server error
+    /matches:
+        get:
+            summary: Get list of matches
+            tags: [Matches]
+            parameters:
+                - in: query
+                  name: liga
+                  schema:
+                      type: string
+                - in: query
+                  name: status
+                  schema:
+                      type: string
+                - in: query
+                  name: dateFrom
+                  schema:
+                      type: string
+                      format: date
+                - in: query
+                  name: dateTo
+                  schema:
+                      type: string
+                      format: date
+            responses:
+                200:
+                    description: List of matches
+        post:
+            summary: Create a new match (Admin)
+            tags: [Matches]
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                mid: { type: integer }
+                                nazwa_gospodarza: { type: string }
+                                nazwa_goscia: { type: string }
+                                data_spotkania: { type: string, format: date-time }
+                                liga: { type: string }
+            responses:
+                201:
+                    description: Match created
+    /matches/{id}:
+        get:
+            summary: Get match details
+            tags: [Matches]
+            parameters:
+                - in: path
+                  name: id
+                  required: true
+                  schema:
+                      type: integer
+            responses:
+                200:
+                    description: Match details
+        put:
+            summary: Update match status
+            tags: [Matches]
+            parameters:
+                - in: path
+                  name: id
+                  required: true
+                  schema:
+                      type: integer
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                status: { type: string }
+                                wynik_gospodarz: { type: integer }
+                                wynik_gosc: { type: integer }
+            responses:
+                200:
+                    description: Status updated
+    /matches/{id}/stats:
+        put:
+            summary: Update match statistics
+            tags: [Matches]
+            parameters:
+                - in: path
+                  name: id
+                  required: true
+                  schema:
+                      type: integer
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            additionalProperties: true
+            responses:
+                200:
+                    description: Stats updated
+    /matches/{id}/timeline:
+        post:
+            summary: Add timeline event
+            tags: [Matches]
+            parameters:
+                - in: path
+                  name: id
+                  required: true
+                  schema:
+                      type: integer
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                minuta: { type: integer }
+                                wynik: { type: string }
+                                posiadanie: { type: string }
+                                komentarz: { type: string }
+            responses:
+                201:
+                    description: Event added
+    /coupons:
+        get:
+            summary: Get user coupons
+            tags: [Betting]
+            responses:
+                200:
+                    description: List of coupons
+        post:
+            summary: Create a coupon
+            tags: [Betting]
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                stawka: { type: number }
+                                kursy: 
+                                    type: array
+                                    items: { type: integer }
+            responses:
+                201:
+                    description: Coupon created
+    /transactions:
+        get:
+            summary: Get user transactions
+            tags: [Wallet]
+            responses:
+                200:
+                    description: List of transactions
+    /wallet/deposit:
+        post:
+            summary: Deposit funds
+            tags: [Wallet]
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                amount: { type: number }
+            responses:
+                200:
+                    description: Deposit successful
+    /wallet/withdraw:
+        post:
+            summary: Withdraw funds
+            tags: [Wallet]
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                amount: { type: number }
+            responses:
+                200:
+                    description: Withdrawal successful
