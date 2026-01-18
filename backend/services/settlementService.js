@@ -26,7 +26,7 @@ export const updateMatchStatuses = async () => {
         
         // Obliczamy timestamp graniczny: mecze starsze niż ta data powinny być zakończone
         // match_date < now - 91 min
-        const ninetyOneMinutesAgo = new Date(now.getTime() - 91 * 60 * 1000);
+        const ninetyOneMinutesAgo = new Date(now.getTime() - 99 * 60 * 1000);
 
         await connection.query(`
             UPDATE mecze 

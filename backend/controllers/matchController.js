@@ -30,7 +30,6 @@ export const getMatches = async (req, res) => {
         // Attach odds to each match
         const matchesWithOdds = await Promise.all(matches.map(async (m) => {
             const [odds] = await db.query('SELECT * FROM kursy WHERE mecz_id = ? AND rodzaj = "1X2"', [m.id]);
-            // Find 1, X, 2 specific odds
             const oddsMap = {
                 home: odds.find(o => o.typ === '1')?.kurs || null,
                 draw: odds.find(o => o.typ === 'X')?.kurs || null,

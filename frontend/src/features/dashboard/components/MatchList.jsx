@@ -91,7 +91,7 @@ export const MatchList = ({ onMatchSelect }) => {
                 <span className={`font-medium ${reallyLive ? 'text-accent animate-pulse' : 'text-light/60'}`}>
                     {reallyLive && '● '} {timeDisplay}
                 </span>
-                {(match.status === 'TRWA' || match.status === 'ZAKONCZONY') && (
+                {match.status === 'ZAKONCZONY' && (
                      <span className="font-bold text-white bg-dark/50 px-2 py-1 rounded">
                         {match.wynik_gospodarz ?? 0} : {match.wynik_gosc ?? 0}
                      </span>

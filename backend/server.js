@@ -68,11 +68,10 @@ app.listen(PORT, () => {
 
     // Rozliczanie kuponów co minutę
     cron.schedule('* * * * *', async () => {
-        try { // Pobierz aktualne wyniki
-            // await importDailyMatches(); // Opcjonalnie: pobieranie z API
-            await updateMatchStatuses(); // Aktualizacja statusów na podstawie czasu
-            await settleMatches();      // Rozlicz zakłady
-            await settleCoupons();      // Rozlicz kupony
+        try { 
+            await updateMatchStatuses(); 
+            await settleMatches();      
+            await settleCoupons();      
         } catch (error) {
             console.error('Błąd w cyklu rozliczeniowym:', error);
         }
@@ -82,6 +81,6 @@ app.listen(PORT, () => {
 	(async () => {
 		await clearMatchData();
 		await importDailyMatches();
-	})();
-	*/
+	})();*/
+	
 })
