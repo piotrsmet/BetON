@@ -52,8 +52,22 @@ export const importDailyMatches = async () => {
                 const homeName = matchData.home_team || matchData.teams?.home || matchData.nazwa_gospodarza;
                 const awayName = matchData.away_team || matchData.teams?.away || matchData.nazwa_goscia;
                 
-                // TYMCZASOWO: Ustawiamy datę meczu na "za 5 minut" od teraz
-                const matchDate = new Date(Date.now() + 5 * 60 * 1000);
+                // Data meczu: z API lub domyślnie "za 5 minut"
+                let matchDate;
+                if (matchData.date || matchData.data_spotkania) {
+                    matchDate = new Date(matchData.date || matchData.data_spotkania);
+                } else {
+                    matchDate = new Date(Date.now() + 5 * 60 * 1000);
+                }
+                
+                // Status meczu
+                let status = 'PLANOWANY';
+                if (matchData.status) {
+                    // Mapowanie statusów
+                    if (matchData.status === 'FINISHED' || matchData.status === 'FT') status = 'ZAKONCZONY';
+                    else if (matchData.status === 'LIVE' || matchData.status === 'IN_PLAY') status = 'TRWA';
+                    else status = matchData.status; // Zostaw jak jest
+                }
                 
                 const league = matchData.league || 'Premier League'; // Domyślnie PL bo to symulator PL
                 
@@ -85,7 +99,7 @@ export const importDailyMatches = async () => {
                          [
                              scoreHome, 
                              scoreAway, 
-                             'PLANOWANY',
+                             status,
                              matchId
                          ]
                      );
@@ -100,7 +114,7 @@ export const importDailyMatches = async () => {
                             awayName, 
                             matchDate, 
                             league, 
-                            'PLANOWANY', // Importujemy jako planowane, aby symulować LIVE
+                            status,
                             scoreHome,
                             scoreAway
                         ]
