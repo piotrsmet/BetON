@@ -1,0 +1,312 @@
+openapi: 3.0.0
+info:
+    title: BetON API
+    version: 1.0.0
+    description: API documentation for BetON application
+servers:
+    - url: http://localhost:5000/api
+      description: Local server
+tags:
+    - name: Auth
+      description: Authentication API
+    - name: Users
+      description: User management API
+    - name: Matches
+      description: Match management and stats API
+    - name: Betting
+      description: Coupons and betting API
+    - name: Wallet
+      description: Wallet and transactions API
+paths:
+    /register:
+        post:
+            summary: Register a new user
+            tags: [Auth]
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required:
+                                - username
+                                - email
+                                - password
+                            properties:
+                                username:
+                                    type: string
+                                email:
+                                    type: string
+                                    format: email
+                                password:
+                                    type: string
+                                    format: password
+            responses:
+                201:
+                    description: User registered successfully
+                400:
+                    description: Username or email already exists
+                500:
+                    description: Server error
+    /login:
+        post:
+            summary: Login a user
+            tags: [Auth]
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required:
+                                - username
+                                - password
+                            properties:
+                                username:
+                                    type: string
+                                password:
+                                    type: string
+                                    format: password
+            responses:
+                200:
+                    description: Logged in successfully
+                400:
+                    description: Invalid credentials
+                500:
+                    description: Server error
+    /check-session:
+        get:
+            summary: Check current session status
+            tags: [Auth]
+            responses:
+                200:
+                    description: Session status
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    isLoggedIn:
+                                        type: boolean
+                                    userId:
+                                        type: integer
+                                    username:
+                                        type: string
+                                    balance:
+                                        type: number
+                500:
+                    description: Server error
+    /logout:
+        post:
+            summary: Logout current user
+            tags: [Auth]
+            responses:
+                200:
+                    description: Logged out successfully
+                500:
+                    description: Server error
+    /uzytkownicy:
+        get:
+            summary: Get all users
+            tags: [Users]
+            responses:
+                200:
+                    description: List of all users
+                    content:
+                        application/json:
+                            schema:
+                                type: array
+                                items:
+                                    type: object
+                                    properties:
+                                        id:
+                                            type: integer
+                                        nazwa:
+                                            type: string
+                                        email:
+                                            type: string
+                                        saldo:
+                                            type: number
+                500:
+                    description: Server error
+    /matches:
+        get:
+            summary: Get list of matches
+            tags: [Matches]
+            parameters:
+                - in: query
+                  name: liga
+                  schema:
+                      type: string
+                - in: query
+                  name: status
+                  schema:
+                      type: string
+                - in: query
+                  name: dateFrom
+                  schema:
+                      type: string
+                      format: date
+                - in: query
+                  name: dateTo
+                  schema:
+                      type: string
+                      format: date
+            responses:
+                200:
+                    description: List of matches
+        post:
+            summary: Create a new match (Admin)
+            tags: [Matches]
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                mid: { type: integer }
+                                nazwa_gospodarza: { type: string }
+                                nazwa_goscia: { type: string }
+                                data_spotkania: { type: string, format: date-time }
+                                liga: { type: string }
+            responses:
+                201:
+                    description: Match created
+    /matches/{id}:
+        get:
+            summary: Get match details
+            tags: [Matches]
+            parameters:
+                - in: path
+                  name: id
+                  required: true
+                  schema:
+                      type: integer
+            responses:
+                200:
+                    description: Match details
+        put:
+            summary: Update match status
+            tags: [Matches]
+            parameters:
+                - in: path
+                  name: id
+                  required: true
+                  schema:
+                      type: integer
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                status: { type: string }
+                                wynik_gospodarz: { type: integer }
+                                wynik_gosc: { type: integer }
+            responses:
+                200:
+                    description: Status updated
+    /matches/{id}/stats:
+        put:
+            summary: Update match statistics
+            tags: [Matches]
+            parameters:
+                - in: path
+                  name: id
+                  required: true
+                  schema:
+                      type: integer
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            additionalProperties: true
+            responses:
+                200:
+                    description: Stats updated
+    /matches/{id}/timeline:
+        post:
+            summary: Add timeline event
+            tags: [Matches]
+            parameters:
+                - in: path
+                  name: id
+                  required: true
+                  schema:
+                      type: integer
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                minuta: { type: integer }
+                                wynik: { type: string }
+                                posiadanie: { type: string }
+                                komentarz: { type: string }
+            responses:
+                201:
+                    description: Event added
+    /coupons:
+        get:
+            summary: Get user coupons
+            tags: [Betting]
+            responses:
+                200:
+                    description: List of coupons
+        post:
+            summary: Create a coupon
+            tags: [Betting]
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                stawka: { type: number }
+                                kursy: 
+                                    type: array
+                                    items: { type: integer }
+            responses:
+                201:
+                    description: Coupon created
+    /transactions:
+        get:
+            summary: Get user transactions
+            tags: [Wallet]
+            responses:
+                200:
+                    description: List of transactions
+    /wallet/deposit:
+        post:
+            summary: Deposit funds
+            tags: [Wallet]
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                amount: { type: number }
+            responses:
+                200:
+                    description: Deposit successful
+    /wallet/withdraw:
+        post:
+            summary: Withdraw funds
+            tags: [Wallet]
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                amount: { type: number }
+            responses:
+                200:
+                    description: Withdrawal successful
