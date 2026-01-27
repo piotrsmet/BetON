@@ -71,7 +71,17 @@ export const MatchDetails = ({ matchId, onBack }) => {
                     rozne_gospodarz: latest.rozne_gospodarz || 0,
                     rozne_gosc: latest.rozne_gosc || 0,
                     faule_gospodarz: latest.faule_gospodarz || 0,
-                    faule_gosc: latest.faule_gosc || 0
+                    faule_gosc: latest.faule_gosc || 0,
+                    strzaly_gospodarz: latest.strzaly_gospodarz || 0,
+                    strzaly_gosc: latest.strzaly_gosc || 0,
+                    strzaly_celne_gospodarz: latest.strzaly_celne_gospodarz || 0,
+                    strzaly_celne_gosc: latest.strzaly_celne_gosc || 0,
+                    zolte_kartki_gospodarz: latest.zolte_kartki_gospodarz || 0,
+                    zolte_kartki_gosc: latest.zolte_kartki_gosc || 0,
+                    czerwone_kartki_gospodarz: latest.czerwone_kartki_gospodarz || 0,
+                    czerwone_kartki_gosc: latest.czerwone_kartki_gosc || 0,
+                    posiadanie_gospodarz: latest.posiadanie_gospodarz || 50,
+                    posiadanie_gosc: latest.posiadanie_gosc || 50
                 });
                 
                 const [h, a] = latest.wynik.split(':');
@@ -82,7 +92,17 @@ export const MatchDetails = ({ matchId, onBack }) => {
                     rozne_gospodarz: 0,
                     rozne_gosc: 0,
                     faule_gospodarz: 0,
-                    faule_gosc: 0
+                    faule_gosc: 0,
+                    strzaly_gospodarz: 0,
+                    strzaly_gosc: 0,
+                    strzaly_celne_gospodarz: 0,
+                    strzaly_celne_gosc: 0,
+                    zolte_kartki_gospodarz: 0,
+                    zolte_kartki_gosc: 0,
+                    czerwone_kartki_gospodarz: 0,
+                    czerwone_kartki_gosc: 0,
+                    posiadanie_gospodarz: 50,
+                    posiadanie_gosc: 50
                 });
                 setCurrentScore({ home: 0, away: 0 });
             }
@@ -172,6 +192,46 @@ export const MatchDetails = ({ matchId, onBack }) => {
                              <h4 className="text-white font-bold mb-4">Statystyki na żywo</h4>
                              
                              <div className="space-y-4">
+                                 {/* Posiadanie piłki */}
+                                 <div>
+                                     <div className="flex justify-between text-xs text-white/60 mb-1">
+                                         <span className="font-bold text-blue">{Math.round(currentStats.posiadanie_gospodarz)}%</span>
+                                         <span>Posiadanie piłki</span>
+                                         <span className="font-bold text-rose">{Math.round(currentStats.posiadanie_gosc)}%</span>
+                                     </div>
+                                     <div className="h-3 bg-dark rounded-full overflow-hidden flex">
+                                         <div style={{ width: `${currentStats.posiadanie_gospodarz}%` }} className="bg-blue h-full transition-all duration-500" />
+                                         <div style={{ width: `${currentStats.posiadanie_gosc}%` }} className="bg-rose h-full transition-all duration-500" />
+                                     </div>
+                                 </div>
+
+                                 {/* Strzały */}
+                                 <div>
+                                     <div className="flex justify-between text-xs text-white/60 mb-1">
+                                         <span>{currentStats.strzaly_gospodarz}</span>
+                                         <span>Strzały</span>
+                                         <span>{currentStats.strzaly_gosc}</span>
+                                     </div>
+                                     <div className="h-2 bg-dark rounded-full overflow-hidden flex">
+                                         <div style={{ width: `${(currentStats.strzaly_gospodarz / (currentStats.strzaly_gospodarz + currentStats.strzaly_gosc || 1)) * 100}%` }} className="bg-blue h-full transition-all duration-500" />
+                                         <div style={{ width: `${(currentStats.strzaly_gosc / (currentStats.strzaly_gospodarz + currentStats.strzaly_gosc || 1)) * 100}%` }} className="bg-rose h-full transition-all duration-500" />
+                                     </div>
+                                 </div>
+
+                                 {/* Strzały celne */}
+                                 <div>
+                                     <div className="flex justify-between text-xs text-white/60 mb-1">
+                                         <span>{currentStats.strzaly_celne_gospodarz}</span>
+                                         <span>Strzały celne</span>
+                                         <span>{currentStats.strzaly_celne_gosc}</span>
+                                     </div>
+                                     <div className="h-2 bg-dark rounded-full overflow-hidden flex">
+                                         <div style={{ width: `${(currentStats.strzaly_celne_gospodarz / (currentStats.strzaly_celne_gospodarz + currentStats.strzaly_celne_gosc || 1)) * 100}%` }} className="bg-blue h-full transition-all duration-500" />
+                                         <div style={{ width: `${(currentStats.strzaly_celne_gosc / (currentStats.strzaly_celne_gospodarz + currentStats.strzaly_celne_gosc || 1)) * 100}%` }} className="bg-rose h-full transition-all duration-500" />
+                                     </div>
+                                 </div>
+
+                                 {/* Rzuty rożne */}
                                  <div>
                                      <div className="flex justify-between text-xs text-white/60 mb-1">
                                          <span>{currentStats.rozne_gospodarz}</span>
@@ -179,11 +239,12 @@ export const MatchDetails = ({ matchId, onBack }) => {
                                          <span>{currentStats.rozne_gosc}</span>
                                      </div>
                                      <div className="h-2 bg-dark rounded-full overflow-hidden flex">
-                                         <div style={{ width: `${(currentStats.rozne_gospodarz / (currentStats.rozne_gospodarz + currentStats.rozne_gosc || 1)) * 100}%` }} className="bg-blue h-full" />
-                                         <div style={{ width: `${(currentStats.rozne_gosc / (currentStats.rozne_gospodarz + currentStats.rozne_gosc || 1)) * 100}%` }} className="bg-rose h-full" />
+                                         <div style={{ width: `${(currentStats.rozne_gospodarz / (currentStats.rozne_gospodarz + currentStats.rozne_gosc || 1)) * 100}%` }} className="bg-blue h-full transition-all duration-500" />
+                                         <div style={{ width: `${(currentStats.rozne_gosc / (currentStats.rozne_gospodarz + currentStats.rozne_gosc || 1)) * 100}%` }} className="bg-rose h-full transition-all duration-500" />
                                      </div>
                                  </div>
                                  
+                                 {/* Faule */}
                                  <div>
                                      <div className="flex justify-between text-xs text-white/60 mb-1">
                                          <span>{currentStats.faule_gospodarz}</span>
@@ -191,8 +252,26 @@ export const MatchDetails = ({ matchId, onBack }) => {
                                          <span>{currentStats.faule_gosc}</span>
                                      </div>
                                      <div className="h-2 bg-dark rounded-full overflow-hidden flex">
-                                         <div style={{ width: `${(currentStats.faule_gospodarz / (currentStats.faule_gospodarz + currentStats.faule_gosc || 1)) * 100}%` }} className="bg-blue h-full" />
-                                         <div style={{ width: `${(currentStats.faule_gosc / (currentStats.faule_gospodarz + currentStats.faule_gosc || 1)) * 100}%` }} className="bg-rose h-full" />
+                                         <div style={{ width: `${(currentStats.faule_gospodarz / (currentStats.faule_gospodarz + currentStats.faule_gosc || 1)) * 100}%` }} className="bg-blue h-full transition-all duration-500" />
+                                         <div style={{ width: `${(currentStats.faule_gosc / (currentStats.faule_gospodarz + currentStats.faule_gosc || 1)) * 100}%` }} className="bg-rose h-full transition-all duration-500" />
+                                     </div>
+                                 </div>
+
+                                 {/* Żółte kartki */}
+                                 <div>
+                                     <div className="flex justify-between text-xs text-white/60 mb-1">
+                                         <span className="text-yellow-400">🟨 {currentStats.zolte_kartki_gospodarz}</span>
+                                         <span>Żółte kartki</span>
+                                         <span className="text-yellow-400">{currentStats.zolte_kartki_gosc} 🟨</span>
+                                     </div>
+                                 </div>
+
+                                 {/* Czerwone kartki */}
+                                 <div>
+                                     <div className="flex justify-between text-xs text-white/60 mb-1">
+                                         <span className="text-red-500">🟥 {currentStats.czerwone_kartki_gospodarz}</span>
+                                         <span>Czerwone kartki</span>
+                                         <span className="text-red-500">{currentStats.czerwone_kartki_gosc} 🟥</span>
                                      </div>
                                  </div>
                              </div>
