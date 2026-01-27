@@ -1,0 +1,73 @@
+{
+  "results": [
+    {
+      "test_name": "test_match_simulation_json_valid",
+      "category": "format/json",
+      "passed": true,
+      "details": "Poprawny JSON z 91 minutami",
+      "timestamp": "2026-01-27T17:04:03.880404"
+    },
+    {
+      "test_name": "test_odds_schema_valid",
+      "category": "format/json",
+      "passed": true,
+      "details": "Wszystkie pola kurs\u00f3w poprawne",
+      "timestamp": "2026-01-27T17:04:03.881017"
+    },
+    {
+      "test_name": "test_path_traversal_blocked",
+      "category": "red-team/path_traversal",
+      "passed": true,
+      "details": "Zablokowano 5/5 pr\u00f3b traversal",
+      "timestamp": "2026-01-27T17:04:03.881822"
+    },
+    {
+      "test_name": "test_prompt_injection_blocked",
+      "category": "red-team/injection",
+      "passed": true,
+      "details": "Zablokowano 5/5 pr\u00f3b injection",
+      "timestamp": "2026-01-27T17:04:03.882049"
+    },
+    {
+      "test_name": "test_context_packing",
+      "category": "rag/context",
+      "passed": true,
+      "details": "Kontekst d\u0142ugo\u015bci 74, 2 chunk\u00f3w",
+      "timestamp": "2026-01-27T17:04:10.880952"
+    },
+    {
+      "test_name": "test_team_search_returns_results",
+      "category": "rag/retrieval",
+      "passed": true,
+      "details": "Znaleziono 5 wynik\u00f3w",
+      "timestamp": "2026-01-27T17:04:10.896384"
+    },
+    {
+      "test_name": "test_dispatcher_security",
+      "category": "tools/security",
+      "passed": true,
+      "details": "Nieznane narz\u0119dzie zablokowane",
+      "timestamp": "2026-01-27T17:04:10.896467"
+    },
+    {
+      "test_name": "test_tool_registry",
+      "category": "tools",
+      "passed": true,
+      "details": "Zarejestrowano 5 narz\u0119dzi",
+      "timestamp": "2026-01-27T17:04:10.896475"
+    },
+    {
+      "test_name": "test_team_name_validation",
+      "category": "validation",
+      "passed": true,
+      "details": "Walidacja nazw dzia\u0142a poprawnie",
+      "timestamp": "2026-01-27T17:04:10.896560"
+    }
+  ],
+  "summary": {
+    "total": 9,
+    "passed": 9,
+    "failed": 0,
+    "pass_rate": 100.0
+  }
+}

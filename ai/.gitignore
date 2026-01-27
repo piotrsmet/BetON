@@ -1,0 +1,44 @@
+# Environment & Secrets - NIGDY NIE COMMITUJ!
+.env
+*.env.local
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+.venv/
+ENV/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Data & Cache
+data/match_index/
+*.faiss
+.cache/
+*.log
+
+# Test outputs
+test_output.json
+tests/test_results/*.json
+tests/test_results/*.md
+
+# System
+.DS_Store
+Thumbs.db
+
+# Temporary
+*.tmp
+*.bak
+
+# ZIP (nie potrzebny w repo)
+*.zip
