@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  api:
+    build: .
+    container_name: football-simulation-api
+    ports:
+      - "8000:8000"
+    environment:
+      - LLM_PROVIDER=local
+      - LOCAL_LLM_ENABLED=true
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - DEBUG_MODE=false
+    volumes:
+      - ./data:/app/data
+      - ./DANE:/app/DANE:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import httpx; httpx.get('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Opcjonalnie - runner testów
+  tests:
+    build: .
+    container_name: football-simulation-tests
+    command: python tests/test_main.py
+    volumes:
+      - ./tests/test_results:/app/tests/test_results
+    depends_on:
+      - api
+    profiles:
+      - test
+
+volumes:
+  data:
