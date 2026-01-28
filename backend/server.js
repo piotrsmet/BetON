@@ -77,10 +77,10 @@ app.listen(PORT, () => {
         }
     });
 
-	
+	/*
 	(async () => {
 		await clearMatchData();
 		await importDailyMatches();
 	})();
-	
+	*/
 })
