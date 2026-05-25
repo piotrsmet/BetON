@@ -1,6 +1,5 @@
 import express from 'express'
 import cors from 'cors'
-import session from 'express-session'
 import path, { dirname, join } from 'path'
 import { fileURLToPath } from 'url'
 import { setupSwagger } from './swagger.js'
@@ -25,19 +24,6 @@ app.use(
 app.use(express.json())
 
 setupSwagger(app)
-
-app.use(
-	session({
-		secret: 'twoj-sekretny-klucz-zmien-na-produkcji',
-		resave: false,
-		saveUninitialized: false,
-		cookie: {
-			secure: false,
-			httpOnly: true,
-			maxAge: 1000 * 60 * 60 * 24 * 7,
-		},
-	})
-)
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)

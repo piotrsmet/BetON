@@ -50,6 +50,7 @@ function App() {
     } catch (error) {
       console.error('Logout failed', error);
     }
+    localStorage.removeItem('beton_token');
     setTimeout(() => {
       setUser(null);
       setCurrentScreen('login');

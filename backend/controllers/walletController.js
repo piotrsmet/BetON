@@ -1,8 +1,7 @@
 import prisma from '../prisma.js';
 
 export const getTransactions = async (req, res) => {
-    const userId = req.session?.userId;
-    if (!userId) return res.status(401).json({ error: 'Nieozalogowany' });
+    const userId = req.userId;
 
     try {
         const transactions = await prisma.transakcje.findMany({
@@ -17,8 +16,7 @@ export const getTransactions = async (req, res) => {
 };
 
 export const deposit = async (req, res) => {
-    const userId = req.session?.userId;
-    if (!userId) return res.status(401).json({ error: 'Nieozalogowany' });
+    const userId = req.userId;
     
     const { amount } = req.body;
     if (!amount || amount <= 0) return res.status(400).json({ error: 'Nieprawidłowa kwota' });
@@ -47,8 +45,7 @@ export const deposit = async (req, res) => {
 };
 
 export const withdraw = async (req, res) => {
-    const userId = req.session?.userId;
-    if (!userId) return res.status(401).json({ error: 'Nieozalogowany' });
+    const userId = req.userId;
 
     const { amount } = req.body;
     if (!amount || amount <= 0) return res.status(400).json({ error: 'Nieprawidłowa kwota' });

@@ -1,11 +1,7 @@
 import prisma from '../prisma.js';
 
 export const createCoupon = async (req, res) => {
-    const userId = req.session?.userId; 
-    
-    if (!userId) {
-        return res.status(401).json({ error: 'Nieozalogowany' });
-    }
+    const userId = req.userId;
 
     const { stawka, kursy } = req.body;
 
@@ -77,8 +73,7 @@ export const createCoupon = async (req, res) => {
 };
 
 export const getUserCoupons = async (req, res) => {
-    const userId = req.session?.userId;
-    if (!userId) return res.status(401).json({ error: 'Nieozalogowany' });
+    const userId = req.userId;
 
     try {
         const coupons = await prisma.kupony.findMany({

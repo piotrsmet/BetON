@@ -1,5 +1,6 @@
 import bcrypt from 'bcrypt';
 import prisma from '../prisma.js';
+import { generateToken } from '../middleware/auth.js';
 
 export const register = async (req, res) => {
     const { username, email, password } = req.body;
@@ -32,9 +33,12 @@ export const register = async (req, res) => {
             }
         });
 
+        const token = generateToken(newUser);
+
         res.status(201).json({
             message: 'Użytkownik został zarejestrowany pomyślnie',
             userId: newUser.id,
+            token,
         });
     } catch (err) {
         console.error('Błąd podczas rejestracji:', err);
@@ -59,14 +63,14 @@ export const login = async (req, res) => {
             return res.status(400).json({ error: 'Nieprawidłowa nazwa użytkownika lub hasło' });
         }
 
-        req.session.userId = user.id;
-        req.session.username = user.nazwa;
+        const token = generateToken(user);
 
         res.status(200).json({
             message: 'Zalogowano pomyślnie',
             userId: user.id,
             username: user.nazwa,
             balance: user.saldo,
+            token,
         });
     } catch (err) {
         console.error('Błąd podczas logowania:', err);
@@ -75,39 +79,40 @@ export const login = async (req, res) => {
 };
 
 export const checkSession = async (req, res) => {
-    if (req.session.userId) {
-        try {
-            const user = await prisma.uzytkownicy.findUnique({
-                where: { id: req.session.userId },
-                select: { id: true, nazwa: true, saldo: true }
-            });
+    // Z JWT: jeśli middleware przepuścił request, to user jest zalogowany
+    // Ale check-session jest publiczny, więc sprawdzamy token ręcznie
+    const authHeader = req.headers.authorization;
 
-            if (user) {
-                res.json({
-                    isLoggedIn: true,
-                    userId: user.id,
-                    username: user.nazwa,
-                    balance: user.saldo,
-                });
-            } else {
-                req.session.destroy();
-                res.json({ isLoggedIn: false });
-            }
-        } catch (err) {
-            console.error('Błąd podczas sprawdzania sesji:', err);
-            res.status(500).json({ error: 'Błąd serwera' });
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.json({ isLoggedIn: false });
+    }
+
+    try {
+        const jwt = await import('jsonwebtoken');
+        const JWT_SECRET = process.env.JWT_SECRET || 'beton-super-secret-key-zmien-na-produkcji';
+        const decoded = jwt.default.verify(authHeader.split(' ')[1], JWT_SECRET);
+
+        const user = await prisma.uzytkownicy.findUnique({
+            where: { id: decoded.userId },
+            select: { id: true, nazwa: true, saldo: true }
+        });
+
+        if (user) {
+            res.json({
+                isLoggedIn: true,
+                userId: user.id,
+                username: user.nazwa,
+                balance: user.saldo,
+            });
+        } else {
+            res.json({ isLoggedIn: false });
         }
-    } else {
+    } catch (err) {
         res.json({ isLoggedIn: false });
     }
 };
 
 export const logout = (req, res) => {
-    req.session.destroy(err => {
-        if (err) {
-            return res.status(500).json({ error: 'Błąd podczas wylogowania' });
-        }
-        res.clearCookie('connect.sid');
-        res.json({ message: 'Wylogowano pomyślnie' });
-    });
+    // Z JWT logout odbywa się po stronie klienta (usunięcie tokenu)
+    res.json({ message: 'Wylogowano pomyślnie' });
 };
