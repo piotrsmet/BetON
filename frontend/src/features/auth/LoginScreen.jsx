@@ -26,13 +26,20 @@ export const LoginScreen = ({ onSwitchToRegister, onLoginSuccess }) => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center relative bg-gradient-to-br from-dark via-primary to-secondary overflow-hidden">
+    <div className="min-h-screen flex items-center justify-center relative overflow-hidden bg-[#0f172a]">
+      {/* Cherry Tree Background */}
+      <div 
+        className="absolute inset-0 z-0 bg-cover bg-center opacity-60 mix-blend-screen transition-all duration-1000"
+        style={{ backgroundImage: 'url(/cherry_bg.png)' }}
+      />
+      
+      {/* Cherry petals falling */}
       <Snowfall 
-        color="#ffffff"
-        snowflakeCount={200}
-        radius={[0.5, 3.0]}
-        speed={[0.5, 3.0]}
-        wind={[-0.5, 2.0]}
+        color="#ffb7c5"
+        snowflakeCount={150}
+        radius={[1.5, 4.5]}
+        speed={[0.5, 2.5]}
+        wind={[1.5, 3.5]}
         style={{
           position: 'fixed',
           width: '100vw',
@@ -40,12 +47,6 @@ export const LoginScreen = ({ onSwitchToRegister, onLoginSuccess }) => {
           zIndex: 1,
         }}
       />
-      
-      {/* Snow pile at bottom - only top part visible */}
-      <div className="absolute bottom-0 left-0 right-0 h-20 pointer-events-none z-0 overflow-hidden">
-        <div className="absolute -bottom-8 left-0 right-0 h-24 bg-white/20 rounded-t-[100%] blur-sm"></div>
-        <div className="absolute -bottom-4 left-0 right-0 h-20 bg-white/30 rounded-t-[100%]"></div>
-      </div>
       
       <div className="z-10 w-full max-w-md px-4">
         <div className="bg-secondary/90 backdrop-blur-xl rounded-2xl p-10 shadow-2xl border border-accent/20">

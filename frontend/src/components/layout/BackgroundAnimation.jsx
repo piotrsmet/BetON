@@ -58,14 +58,13 @@ export const BackgroundAnimation = () => {
         ctx.rotate(this.rotation);
         ctx.globalAlpha = this.opacity;
         
-        // Snowflake shape
-        ctx.fillStyle = 'white';
+        // Petal shape
+        ctx.fillStyle = '#ffb7c5';
         ctx.beginPath();
-        for (let i = 0; i < 6; i++) {
-          ctx.rotate(Math.PI / 3);
-          ctx.moveTo(0, 0);
-          ctx.lineTo(0, this.size);
-        }
+        // A simple teardrop/petal shape
+        ctx.moveTo(0, -this.size);
+        ctx.bezierCurveTo(this.size, -this.size, this.size, this.size, 0, this.size);
+        ctx.bezierCurveTo(-this.size, this.size, -this.size, -this.size, 0, -this.size);
         ctx.fill();
         
         ctx.restore();
@@ -99,7 +98,11 @@ export const BackgroundAnimation = () => {
   }, []);
 
   return (
-    <div className="fixed inset-0 -z-10 overflow-hidden bg-gradient-to-br from-primary via-secondary to-primary">
+    <div className="fixed inset-0 -z-10 overflow-hidden bg-[#0f172a]">
+      <div 
+        className="absolute inset-0 z-0 bg-cover bg-center opacity-60 mix-blend-screen transition-all duration-1000"
+        style={{ backgroundImage: 'url(/cherry_bg.png)' }}
+      />
       <canvas ref={canvasRef} className="absolute inset-0 w-full h-full pointer-events-none z-10" />
     </div>
   );
