@@ -33,7 +33,7 @@ export const Betslip = () => {
     if (bets.length === 0) {
       return (
         <div className="flex flex-col items-center justify-center text-light/40 text-center p-8 py-12">
-          <div className="text-7xl mb-6 opacity-20">🎫</div>
+          <div className="text-7xl mb-6 opacity-20"></div>
           <p className="font-semibold text-lg mb-2 text-light/60">Twój kupon jest pusty</p>
           <small className="text-sm mt-1">Kliknij na kurs, aby dodać zakład</small>
           
@@ -131,7 +131,7 @@ export const Betslip = () => {
           style={{ boxShadow: '0 8px 32px rgba(255, 204, 0, 0.4)' }}
         >
           <div className="relative">
-            <span className="text-2xl">🎫</span>
+            <span className="text-2xl"></span>
             {bets.length > 0 && (
               <span className="absolute -top-2 -right-3 bg-red-500 text-white w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold animate-pulse">
                 {bets.length}

@@ -24,7 +24,7 @@ export const CouponHistory = () => {
     if (coupons.length === 0) {
         return (
             <div className="text-center p-10 text-white/60">
-                <div className="text-6xl mb-4">📜</div>
+                <div className="text-6xl mb-4"></div>
                 <h3 className="text-xl font-bold">Brak kuponów</h3>
                 <p>Postaw swój pierwszy zakład!</p>
             </div>

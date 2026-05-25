@@ -260,18 +260,18 @@ export const MatchDetails = ({ matchId, onBack }) => {
                                  {/* Żółte kartki */}
                                  <div>
                                      <div className="flex justify-between text-xs text-white/60 mb-1">
-                                         <span className="text-yellow-400">🟨 {currentStats.zolte_kartki_gospodarz}</span>
+                                         <span className="text-yellow-400">ŻK {currentStats.zolte_kartki_gospodarz}</span>
                                          <span>Żółte kartki</span>
-                                         <span className="text-yellow-400">{currentStats.zolte_kartki_gosc} 🟨</span>
+                                         <span className="text-yellow-400">{currentStats.zolte_kartki_gosc} ŻK</span>
                                      </div>
                                  </div>
 
                                  {/* Czerwone kartki */}
                                  <div>
                                      <div className="flex justify-between text-xs text-white/60 mb-1">
-                                         <span className="text-red-500">🟥 {currentStats.czerwone_kartki_gospodarz}</span>
+                                         <span className="text-red-500">CK {currentStats.czerwone_kartki_gospodarz}</span>
                                          <span>Czerwone kartki</span>
-                                         <span className="text-red-500">{currentStats.czerwone_kartki_gosc} 🟥</span>
+                                         <span className="text-red-500">{currentStats.czerwone_kartki_gosc} CK</span>
                                      </div>
                                  </div>
                              </div>
@@ -303,7 +303,7 @@ export const MatchDetails = ({ matchId, onBack }) => {
                                         : 'bg-white/5 border border-white/5'
                                     }`}>
                                          {event.komentarz.includes('GOOL') && (
-                                             <div className="text-accent font-black text-sm mb-1 uppercase tracking-wider">⚽ GOOL!</div>
+                                             <div className="text-accent font-black text-sm mb-1 uppercase tracking-wider">GOOL!</div>
                                          )}
                                          <p className="text-white/90 text-sm leading-relaxed">{event.komentarz}</p>
                                          <div className="mt-2 text-xs font-mono text-white/40">Wynik: {event.wynik}</div>

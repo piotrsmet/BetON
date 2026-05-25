@@ -5,6 +5,8 @@ import { useBetting } from '../../../context/BettingContext';
 export const MatchList = ({ onMatchSelect }) => {
   const [matches, setMatches] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [currentTime, setCurrentTime] = useState(new Date());
   const { addBet, bets } = useBetting();
 
   const fetchMatches = async () => {
@@ -24,17 +26,29 @@ export const MatchList = ({ onMatchSelect }) => {
     return () => clearInterval(interval);
   }, []);
 
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
   const calculateTime = (dateStr, status) => {
     const matchDate = new Date(dateStr);
-    const now = new Date();
     
     if (status === 'ZAKONCZONY') return 'FT';
     if (status === 'PLANOWANY') {
+        const diffMs = matchDate - currentTime;
+        // Odliczaj tylko jeśli mecz jest w ciągu najbliższych 24h i w przyszłości
+        if (diffMs > 0 && diffMs < 24 * 60 * 60 * 1000) {
+            const hours = Math.floor(diffMs / (1000 * 60 * 60));
+            const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((diffMs % (1000 * 60)) / 1000);
+            return `Za: ${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        }
         return matchDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     }
     
     // TRWA -> Calculate minutes
-    const diffMs = now - matchDate;
+    const diffMs = currentTime - matchDate;
     const minutes = Math.floor(diffMs / 60000);
     
     // If match started 5-10m ago (based on our importer), show minutes. 
@@ -66,14 +80,36 @@ export const MatchList = ({ onMatchSelect }) => {
       return <div className="text-white text-center p-10">Ładowanie meczów...</div>;
   }
 
+  const filteredMatches = matches.filter(match => {
+    const searchLower = searchQuery.toLowerCase();
+    return (
+      match.nazwa_gospodarza?.toLowerCase().includes(searchLower) ||
+      match.nazwa_goscia?.toLowerCase().includes(searchLower) ||
+      match.liga?.toLowerCase().includes(searchLower)
+    );
+  });
+
   return (
     <div className="py-2 md:py-4">
-      <h3 className="text-xl md:text-2xl mb-4 md:mb-6 text-white flex items-center gap-2 md:gap-3 font-bold">
-        <span className="text-2xl md:text-3xl">🔥</span> 
-        <span>Top mecze na żywo</span>
-      </h3>
+      <div className="flex flex-col md:flex-row md:items-center justify-between mb-4 md:mb-6 gap-4">
+        <h3 className="text-xl md:text-2xl text-white flex items-center gap-2 md:gap-3 font-bold">
+          <span className="text-2xl md:text-3xl"></span> 
+          <span>Top mecze</span>
+        </h3>
+        <input 
+          type="text" 
+          placeholder="Szukaj drużyny lub ligi..." 
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="bg-secondary/80 text-white px-4 py-2 md:py-3 rounded-xl border border-primary focus:outline-none focus:border-accent w-full md:w-72 shadow-inner transition-all placeholder:text-light/40"
+        />
+      </div>
       <div className="grid grid-cols-1 gap-3 md:gap-4">
-        {matches.map(match => {
+        {filteredMatches.length === 0 ? (
+          <div className="text-light/60 text-center py-8 bg-secondary/30 rounded-2xl border border-primary/20">
+            Nie znaleziono meczów pasujących do "{searchQuery}"
+          </div>
+        ) : filteredMatches.map(match => {
           // Determine status text/color
           const timeDisplay = calculateTime(match.data_spotkania, match.status);
           const isLive = match.status === 'TRWA' || (match.status !== 'ZAKONCZONY' && match.status !== 'PLANOWANY');

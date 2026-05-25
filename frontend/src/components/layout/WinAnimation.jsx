@@ -15,7 +15,7 @@ export const WinAnimation = ({ onComplete }) => {
       delay: Math.random() * 1.5,
       duration: 3 + Math.random() * 2,
       rotation: Math.random() * 360,
-      currency: ['💵', '💶', '💷', '💴'][Math.floor(Math.random() * 4)],
+      currency: ['$', '€', '£', '¥'][Math.floor(Math.random() * 4)],
       size: 40 + Math.random() * 30,
     }));
     setBanknotes(banknotesArray);
@@ -121,7 +121,7 @@ export const WinAnimation = ({ onComplete }) => {
             textShadow: '0 0 20px rgba(255, 215, 0, 0.8), 0 0 40px rgba(255, 215, 0, 0.4)',
           }}
         >
-          💰
+          $
         </div>
       ))}
 
@@ -157,15 +157,15 @@ export const WinAnimation = ({ onComplete }) => {
         {/* Welcome Message */}
         <div className="bg-black/40 backdrop-blur-sm rounded-xl px-6 py-4 border-2 border-green-500 animate-[slideInFromBottom_0.8s_ease-out]">
           <p className="text-2xl md:text-4xl font-bold text-white flex items-center justify-center gap-3">
-            <span className="animate-pulse">🎰</span>
+            <span className="animate-pulse">777</span>
             <span className="text-green-400">Witaj w BetON!</span>
-            <span className="animate-pulse">🎰</span>
+            <span className="animate-pulse">777</span>
           </p>
         </div>
 
         {/* Slot Machine Icons */}
         <div className="flex justify-center gap-4 mt-6">
-          {['🎲', '🃏', '🏆', '💎', '⚽'].map((icon, i) => (
+          {['WIN', 'BET', 'POT', 'LUCK', 'GOAL'].map((icon, i) => (
             <div
               key={i}
               className="text-5xl md:text-6xl animate-bounce"
@@ -181,10 +181,10 @@ export const WinAnimation = ({ onComplete }) => {
       </div>
 
       {/* Corner Money Stacks */}
-      <div className="absolute top-8 left-8 text-6xl animate-bounce" style={{ filter: 'drop-shadow(0 0 10px rgba(255, 215, 0, 0.8))' }}>💰</div>
-      <div className="absolute top-8 right-8 text-6xl animate-bounce" style={{ animationDelay: '0.2s', filter: 'drop-shadow(0 0 10px rgba(255, 215, 0, 0.8))' }}>💰</div>
-      <div className="absolute bottom-8 left-8 text-6xl animate-bounce" style={{ animationDelay: '0.4s', filter: 'drop-shadow(0 0 10px rgba(255, 215, 0, 0.8))' }}>💰</div>
-      <div className="absolute bottom-8 right-8 text-6xl animate-bounce" style={{ animationDelay: '0.6s', filter: 'drop-shadow(0 0 10px rgba(255, 215, 0, 0.8))' }}>💰</div>
+      <div className="absolute top-8 left-8 text-6xl animate-bounce" style={{ filter: 'drop-shadow(0 0 10px rgba(255, 215, 0, 0.8))' }}>$</div>
+      <div className="absolute top-8 right-8 text-6xl animate-bounce" style={{ animationDelay: '0.2s', filter: 'drop-shadow(0 0 10px rgba(255, 215, 0, 0.8))' }}>$</div>
+      <div className="absolute bottom-8 left-8 text-6xl animate-bounce" style={{ animationDelay: '0.4s', filter: 'drop-shadow(0 0 10px rgba(255, 215, 0, 0.8))' }}>$</div>
+      <div className="absolute bottom-8 right-8 text-6xl animate-bounce" style={{ animationDelay: '0.6s', filter: 'drop-shadow(0 0 10px rgba(255, 215, 0, 0.8))' }}>$</div>
 
       {/* Golden Glow Overlay */}
       <div className="absolute inset-0 pointer-events-none bg-gradient-to-b from-yellow-500/5 via-transparent to-yellow-500/5 animate-pulse" />

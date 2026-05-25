@@ -39,13 +39,13 @@ export const Dashboard = ({ user, onLogout }) => {
                 onClick={() => { setView('matches'); setSelectedMatchId(null); }}
                 className={`px-4 py-3 rounded-xl font-bold cursor-pointer shadow-lg whitespace-nowrap transition-all flex items-center gap-2 ${view === 'matches' && !selectedMatchId ? 'bg-gradient-to-r from-accent to-emerald text-dark hover:shadow-accent/50' : 'bg-white/5 hover:bg-white/10 text-white'}`}
               >
-                <span>⚽</span> Premier League
+                <span></span> Premier League
               </li>
               <li 
                 onClick={() => { setView('coupons'); setSelectedMatchId(null); }}
                 className={`px-4 py-3 rounded-xl font-bold cursor-pointer shadow-lg whitespace-nowrap transition-all flex items-center gap-2 ${view === 'coupons' ? 'bg-gradient-to-r from-accent to-emerald text-dark hover:shadow-accent/50' : 'bg-white/5 hover:bg-white/10 text-white'}`}
               >
-                <span>📜</span> Moje Kupony
+                <span></span> Moje Kupony
               </li>
             </ul>
           </nav>

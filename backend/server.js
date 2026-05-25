@@ -58,7 +58,7 @@ app.get('/', (req, res) => {
 const PORT = 5001
 app.listen(PORT, () => {
 	console.log(`Server działa na porcie ${PORT}`)
-	
+
 	// Harmonogram zadań - uruchamianie raz dziennie o 3:00 rano
 	cron.schedule('0 3 * * *', async () => {
 		console.log('Uruchamianie planowanego importu meczów...');
@@ -66,21 +66,21 @@ app.listen(PORT, () => {
 		await importDailyMatches();
 	});
 
-    // Rozliczanie kuponów co minutę
-    cron.schedule('* * * * *', async () => {
-        try { 
-            await updateMatchStatuses(); 
-            await settleMatches();      
-            await settleCoupons();      
-        } catch (error) {
-            console.error('Błąd w cyklu rozliczeniowym:', error);
-        }
-    });
+	// Rozliczanie kuponów co minutę
+	cron.schedule('* * * * *', async () => {
+		try {
+			await updateMatchStatuses();
+			await settleMatches();
+			await settleCoupons();
+		} catch (error) {
+			console.error('Błąd w cyklu rozliczeniowym:', error);
+		}
+	});
 
-	/*
+
 	(async () => {
 		await clearMatchData();
 		await importDailyMatches();
 	})();
-	*/
+
 })

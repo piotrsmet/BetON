@@ -4,9 +4,9 @@ export const SlotBanner = () => {
   const [activeItem, setActiveItem] = useState(0);
   
   const items = [
-    { title: "JACKPOT", subtitle: "Wygraj 1,000,000 PLN 💎", gradient: "from-purple to-indigo", glowColor: "purple" },
-    { title: "SUPER KURS", subtitle: "Real Madryt vs Barcelona ⚽", gradient: "from-blue to-indigo", glowColor: "blue" },
-    { title: "BONUS", subtitle: "+100% do pierwszego depozytu 🎁", gradient: "from-accent to-emerald", glowColor: "accent" }
+    { title: "JACKPOT", subtitle: "Wygraj 1,000,000 PLN ", gradient: "from-purple to-indigo", glowColor: "purple" },
+    { title: "SUPER KURS", subtitle: "Real Madryt vs Barcelona ", gradient: "from-blue to-indigo", glowColor: "blue" },
+    { title: "BONUS", subtitle: "+100% do pierwszego depozytu ", gradient: "from-accent to-emerald", glowColor: "accent" }
   ];
 
   useEffect(() => {
