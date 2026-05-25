@@ -12,7 +12,38 @@ export const MatchList = ({ onMatchSelect }) => {
   const fetchMatches = async () => {
     try {
       const data = await apiClient.getMatches();
-      setMatches(data);
+      
+      // Dla meczów na żywo pobieramy szczegóły (przebieg) by zasymulować aktualny wynik
+      const liveMatches = data.filter(m => m.status === 'TRWA');
+      
+      if (liveMatches.length > 0) {
+          const liveDetails = await Promise.all(
+              liveMatches.map(m => apiClient.getMatchDetails(m.id).catch(() => null))
+          );
+          
+          const now = new Date();
+          const dataWithLiveScores = data.map(m => {
+              const details = liveDetails.find(d => d && d.id === m.id);
+              if (details && details.przebieg) {
+                  const matchDate = new Date(m.data_spotkania);
+                  const minute = Math.floor((now - matchDate) / 60000);
+                  const filteredEvents = details.przebieg.filter(e => e.minuta <= minute);
+                  
+                  if (filteredEvents.length > 0) {
+                      const latest = filteredEvents[filteredEvents.length - 1];
+                      const [h, a] = latest.wynik.split(':');
+                      return { ...m, wynik_gospodarz: parseInt(h, 10), wynik_gosc: parseInt(a, 10) };
+                  } else {
+                      return { ...m, wynik_gospodarz: 0, wynik_gosc: 0 };
+                  }
+              }
+              return m;
+          });
+          setMatches(dataWithLiveScores);
+      } else {
+          setMatches(data);
+      }
+      
     } catch (error) {
       console.error('Failed to fetch matches', error);
     } finally {
@@ -127,17 +158,22 @@ export const MatchList = ({ onMatchSelect }) => {
                 <span className={`font-medium ${reallyLive ? 'text-accent animate-pulse' : 'text-light/60'}`}>
                     {reallyLive && '● '} {timeDisplay}
                 </span>
-                {match.status === 'ZAKONCZONY' && (
-                     <span className="font-bold text-white bg-dark/50 px-2 py-1 rounded">
-                        {match.wynik_gospodarz ?? 0} : {match.wynik_gosc ?? 0}
-                     </span>
-                )}
               </div>
               
               <div className="flex justify-between items-center mb-4 md:mb-6 text-base md:text-xl">
-                <div className="text-white font-bold flex-1 truncate pr-2">{match.nazwa_gospodarza}</div>
-                <div className="text-accent text-xs md:text-sm mx-2 md:mx-4 font-bold flex-shrink-0">VS</div>
-                <div className="text-white font-bold flex-1 text-right truncate pl-2">{match.nazwa_goscia}</div>
+                <div className="text-white font-bold flex-1 truncate pr-2 text-right">{match.nazwa_gospodarza}</div>
+                <div className="mx-2 md:mx-4 flex-shrink-0 text-center">
+                  {match.status === 'PLANOWANY' ? (
+                    <span className="text-accent text-xs md:text-sm font-bold">VS</span>
+                  ) : (
+                    <div className="bg-dark/80 text-white font-black text-xl md:text-2xl px-3 md:px-5 py-1 md:py-2 rounded-xl border border-accent/20 shadow-inner inline-flex items-center justify-center min-w-[80px]">
+                      <span className={(match.wynik_gospodarz ?? 0) > (match.wynik_gosc ?? 0) ? 'text-accent' : ''}>{match.wynik_gospodarz ?? 0}</span>
+                      <span className="mx-1 md:mx-2 text-light/40">:</span>
+                      <span className={(match.wynik_gosc ?? 0) > (match.wynik_gospodarz ?? 0) ? 'text-accent' : ''}>{match.wynik_gosc ?? 0}</span>
+                    </div>
+                  )}
+                </div>
+                <div className="text-white font-bold flex-1 truncate pl-2 text-left">{match.nazwa_goscia}</div>
               </div>
 
               <div className="grid grid-cols-3 gap-2 md:gap-3">
