@@ -3,13 +3,13 @@ import pkg from "mysql2"
 const mysql = pkg.default || pkg;
 
 const pool = mysql.createPool({
-	host: 'localhost',         
-	user: 'smecik',         
-	password: 'zaq1@WSX', 
-	database: 'BetON', 
+	host: 'localhost',
+	user: 'root',
+	password: '',
+	database: 'BetON',
 	waitForConnections: true,
-	connectionLimit: 10,       
-	queueLimit: 0             
+	connectionLimit: 10,
+	queueLimit: 0
 });
 
 
