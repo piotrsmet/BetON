@@ -12,7 +12,7 @@ import walletRoutes from './routes/walletRoutes.js'
 
 import cron from 'node-cron'
 import { importDailyMatches, clearMatchData } from './services/matchImporter.js'
-import { settleMatches, settleCoupons, updateMatchStatuses } from './services/settlementService.js'
+import { settleCoupons, updateMatchStatuses } from './services/settlementService.js'
 
 const app = express()
 app.use(
@@ -70,7 +70,7 @@ app.listen(PORT, () => {
 	cron.schedule('* * * * *', async () => {
 		try {
 			await updateMatchStatuses();
-			await settleMatches();
+			// await settleMatches();
 			await settleCoupons();
 		} catch (error) {
 			console.error('Błąd w cyklu rozliczeniowym:', error);

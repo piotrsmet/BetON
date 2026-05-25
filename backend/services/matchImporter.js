@@ -1,5 +1,5 @@
 import axios from 'axios';
-import db from '../db.js';
+import prisma from '../prisma.js';
 
 // URL do nowego API AI (FastAPI)
 const AI_API_URL = 'http://localhost:8000/generate/batch';
@@ -31,20 +31,20 @@ const generateRandomMatchPairs = (numMatches = 5) => {
 
 export const clearMatchData = async () => {
     console.log('Czyszczenie danych meczowych...');
-    const connection = await db.getConnection();
     try {
-        await connection.query('SET FOREIGN_KEY_CHECKS = 0');
-        await connection.query('TRUNCATE TABLE przebieg_meczu');
-        await connection.query('TRUNCATE TABLE statystyki_meczu');
-        await connection.query('TRUNCATE TABLE kursy');
-        await connection.query('TRUNCATE TABLE mecze');
-        await connection.query('SET FOREIGN_KEY_CHECKS = 1');
+        // Używamy raw SQL dla TRUNCATE z wyłączeniem FK checks
+        await prisma.$executeRawUnsafe('SET FOREIGN_KEY_CHECKS = 0');
+        await prisma.$executeRawUnsafe('TRUNCATE TABLE przebieg_meczu');
+        await prisma.$executeRawUnsafe('TRUNCATE TABLE statystyki_meczu');
+        await prisma.$executeRawUnsafe('TRUNCATE TABLE kursy');
+        await prisma.$executeRawUnsafe('TRUNCATE TABLE mecze');
+        await prisma.$executeRawUnsafe('SET FOREIGN_KEY_CHECKS = 1');
         console.log('Dane wyczyszczone.');
     } catch (err) {
         console.error('Błąd podczas czyszczenia danych:', err);
-        await connection.query('SET FOREIGN_KEY_CHECKS = 1');
-    } finally {
-        connection.release();
+        try {
+            await prisma.$executeRawUnsafe('SET FOREIGN_KEY_CHECKS = 1');
+        } catch (_) {}
     }
 }
 
@@ -75,12 +75,8 @@ export const importDailyMatches = async (numMatches = 5) => {
             return;
         }
 
-        const connection = await db.getConnection();
-
-        try {
-            await connection.beginTransaction();
-
-            for (const matchData of matches) {
+        for (const matchData of matches) {
+            try {
                 const homeName = matchData.home_team;
                 const awayName = matchData.away_team;
                 
@@ -91,47 +87,54 @@ export const importDailyMatches = async (numMatches = 5) => {
                 const status = 'PLANOWANY';
                 const league = matchData.league || 'E0'; // E0 = Premier League
                 
-                // Sprawdź czy mecz już istnieje
-                const dateStr = matchDate.toISOString().split('T')[0];
-                
-                const [existing] = await connection.query(
-                    `SELECT id FROM mecze 
-                     WHERE nazwa_gospodarza = ? 
-                     AND nazwa_goscia = ? 
-                     AND DATE(data_spotkania) = ?`, 
-                    [homeName, awayName, dateStr]
-                );
-                
-                let matchId;
-                
                 // Wynik końcowy z API
                 const scoreHome = matchData.final_score_home ?? null;
                 const scoreAway = matchData.final_score_away ?? null;
-
-                if (existing.length > 0) {
-                    matchId = existing[0].id;
+                
+                // Sprawdź czy mecz już istnieje
+                const dateStr = matchDate.toISOString().split('T')[0];
+                const startOfDay = new Date(dateStr);
+                const endOfDay = new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000);
+                
+                const existing = await prisma.mecze.findFirst({
+                    where: {
+                        nazwa_gospodarza: homeName,
+                        nazwa_goscia: awayName,
+                        data_spotkania: {
+                            gte: startOfDay,
+                            lt: endOfDay
+                        }
+                    }
+                });
+                
+                let matchId;
+                
+                if (existing) {
+                    matchId = existing.id;
                     console.log(`Aktualizacja meczu: ${homeName} vs ${awayName} (ID: ${matchId})`);
                     
-                    await connection.query(
-                        'UPDATE mecze SET wynik_gospodarz = ?, wynik_gosc = ?, status = ? WHERE id = ?',
-                        [scoreHome, scoreAway, status, matchId]
-                    );
+                    await prisma.mecze.update({
+                        where: { id: matchId },
+                        data: {
+                            wynik_gospodarz: scoreHome,
+                            wynik_gosc: scoreAway,
+                            status
+                        }
+                    });
                 } else {
                     console.log(`Dodawanie nowego meczu: ${homeName} vs ${awayName}`);
-                    const [res] = await connection.query(
-                        'INSERT INTO mecze (mid, nazwa_gospodarza, nazwa_goscia, data_spotkania, liga, status, wynik_gospodarz, wynik_gosc) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-                        [
-                            null, // mid musi być integer, API zwraca string - pomijamy
-                            homeName, 
-                            awayName, 
-                            matchDate, 
-                            league, 
+                    const newMatch = await prisma.mecze.create({
+                        data: {
+                            nazwa_gospodarza: homeName,
+                            nazwa_goscia: awayName,
+                            data_spotkania: matchDate,
+                            liga: league,
                             status,
-                            scoreHome,
-                            scoreAway
-                        ]
-                    );
-                    matchId = res.insertId;
+                            wynik_gospodarz: scoreHome,
+                            wynik_gosc: scoreAway
+                        }
+                    });
+                    matchId = newMatch.id;
                 }
 
                 // Import Statystyk z ostatniej minuty
@@ -139,131 +142,101 @@ export const importDailyMatches = async (numMatches = 5) => {
                 if (minutes.length > 0) {
                     const lastMinute = minutes[minutes.length - 1];
                     
-                    await connection.query('DELETE FROM statystyki_meczu WHERE mecz_id = ?', [matchId]);
+                    await prisma.statystyki_meczu.deleteMany({
+                        where: { mecz_id: matchId }
+                    });
                     
-                    await connection.query(
-                        `INSERT INTO statystyki_meczu 
-                        (mecz_id, gole_gospodarz, gole_gosc, rozne_gospodarz, rozne_gosc, faule_gospodarz, faule_gosc, 
-                        zolte_kartki_gospodarz, zolte_kartki_gosc, czerwone_kartki_gospodarz, czerwone_kartki_gosc, 
-                        strzaly_gospodarz, strzaly_gosc, strzaly_celne_gospodarz, strzaly_celne_gosc)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                        [
-                            matchId,
-                            lastMinute.home_score ?? 0, 
-                            lastMinute.away_score ?? 0,
-                            lastMinute.home_corners ?? 0, 
-                            lastMinute.away_corners ?? 0,
-                            lastMinute.home_fouls ?? 0, 
-                            lastMinute.away_fouls ?? 0,
-                            lastMinute.home_yellow_cards ?? 0, 
-                            lastMinute.away_yellow_cards ?? 0,
-                            lastMinute.home_red_cards ?? 0, 
-                            lastMinute.away_red_cards ?? 0,
-                            lastMinute.home_shots ?? 0, 
-                            lastMinute.away_shots ?? 0,
-                            lastMinute.home_shots_on_target ?? 0, 
-                            lastMinute.away_shots_on_target ?? 0
-                        ]
-                    );
+                    await prisma.statystyki_meczu.create({
+                        data: {
+                            mecz_id: matchId,
+                            gole_gospodarz: lastMinute.home_score ?? 0,
+                            gole_gosc: lastMinute.away_score ?? 0,
+                            rozne_gospodarz: lastMinute.home_corners ?? 0,
+                            rozne_gosc: lastMinute.away_corners ?? 0,
+                            faule_gospodarz: lastMinute.home_fouls ?? 0,
+                            faule_gosc: lastMinute.away_fouls ?? 0,
+                            zolte_kartki_gospodarz: lastMinute.home_yellow_cards ?? 0,
+                            zolte_kartki_gosc: lastMinute.away_yellow_cards ?? 0,
+                            czerwone_kartki_gospodarz: lastMinute.home_red_cards ?? 0,
+                            czerwone_kartki_gosc: lastMinute.away_red_cards ?? 0,
+                            strzaly_gospodarz: lastMinute.home_shots ?? 0,
+                            strzaly_gosc: lastMinute.away_shots ?? 0,
+                            strzaly_celne_gospodarz: lastMinute.home_shots_on_target ?? 0,
+                            strzaly_celne_gosc: lastMinute.away_shots_on_target ?? 0
+                        }
+                    });
                 }
 
                 // Import Przebiegu (Timeline) - minuta po minucie
                 if (minutes.length > 0) {
-                    await connection.query('DELETE FROM przebieg_meczu WHERE mecz_id = ?', [matchId]);
+                    await prisma.przebieg_meczu.deleteMany({
+                        where: { mecz_id: matchId }
+                    });
 
-                    for (const minuteData of minutes) {
-                        // Mapowanie nowego formatu na stary
-                        const wynik = `${minuteData.home_score}:${minuteData.away_score}`;
-                        const posiadanie = minuteData.home_possession > 50 ? 'home' : 'away';
-                        
-                        await connection.query(
-                            `INSERT INTO przebieg_meczu (
-                                mecz_id, minuta, wynik, posiadanie, komentarz, 
-                                rozne_gospodarz, rozne_gosc, faule_gospodarz, faule_gosc,
-                                strzaly_gospodarz, strzaly_gosc, strzaly_celne_gospodarz, strzaly_celne_gosc,
-                                zolte_kartki_gospodarz, zolte_kartki_gosc, czerwone_kartki_gospodarz, czerwone_kartki_gosc,
-                                posiadanie_gospodarz, posiadanie_gosc
-                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                            [
-                                matchId,
-                                minuteData.minute,
-                                wynik,
-                                posiadanie,
-                                minuteData.commentary || '',
-                                minuteData.home_corners ?? 0,
-                                minuteData.away_corners ?? 0,
-                                minuteData.home_fouls ?? 0,
-                                minuteData.away_fouls ?? 0,
-                                minuteData.home_shots ?? 0,
-                                minuteData.away_shots ?? 0,
-                                minuteData.home_shots_on_target ?? 0,
-                                minuteData.away_shots_on_target ?? 0,
-                                minuteData.home_yellow_cards ?? 0,
-                                minuteData.away_yellow_cards ?? 0,
-                                minuteData.home_red_cards ?? 0,
-                                minuteData.away_red_cards ?? 0,
-                                minuteData.home_possession ?? 50,
-                                minuteData.away_possession ?? 50
-                            ]
-                        );
-                    }
+                    await prisma.przebieg_meczu.createMany({
+                        data: minutes.map(minuteData => ({
+                            mecz_id: matchId,
+                            minuta: minuteData.minute,
+                            wynik: `${minuteData.home_score}:${minuteData.away_score}`,
+                            posiadanie: minuteData.home_possession > 50 ? 'home' : 'away',
+                            komentarz: minuteData.commentary || '',
+                            rozne_gospodarz: minuteData.home_corners ?? 0,
+                            rozne_gosc: minuteData.away_corners ?? 0,
+                            faule_gospodarz: minuteData.home_fouls ?? 0,
+                            faule_gosc: minuteData.away_fouls ?? 0,
+                            strzaly_gospodarz: minuteData.home_shots ?? 0,
+                            strzaly_gosc: minuteData.away_shots ?? 0,
+                            strzaly_celne_gospodarz: minuteData.home_shots_on_target ?? 0,
+                            strzaly_celne_gosc: minuteData.away_shots_on_target ?? 0,
+                            zolte_kartki_gospodarz: minuteData.home_yellow_cards ?? 0,
+                            zolte_kartki_gosc: minuteData.away_yellow_cards ?? 0,
+                            czerwone_kartki_gospodarz: minuteData.home_red_cards ?? 0,
+                            czerwone_kartki_gosc: minuteData.away_red_cards ?? 0,
+                            posiadanie_gospodarz: minuteData.home_possession ?? 50,
+                            posiadanie_gosc: minuteData.away_possession ?? 50
+                        }))
+                    });
                 }
                 
                 // Import Kursów z pre_match_odds
-                const preMatchOdds = matchData.pre_match_odds;
-                if (preMatchOdds) {
-                    const [existingOdds] = await connection.query('SELECT count(*) as cnt FROM kursy WHERE mecz_id = ?', [matchId]);
+                const existingOddsCount = await prisma.kursy.count({
+                    where: { mecz_id: matchId }
+                });
+                
+                if (existingOddsCount === 0) {
+                    const preMatchOdds = matchData.pre_match_odds;
                     
-                    if (existingOdds[0].cnt === 0) {
-                        // Kurs 1 (home_win)
-                        await connection.query(
-                            'INSERT INTO kursy (mecz_id, rodzaj, typ, opis, kurs, status) VALUES (?, ?, ?, ?, ?, ?)',
-                            [matchId, '1X2', '1', homeName, preMatchOdds.home_win, 'AKTYWNY']
-                        );
-                        // Kurs X (draw)
-                        await connection.query(
-                            'INSERT INTO kursy (mecz_id, rodzaj, typ, opis, kurs, status) VALUES (?, ?, ?, ?, ?, ?)',
-                            [matchId, '1X2', 'X', 'Remis', preMatchOdds.draw, 'AKTYWNY']
-                        );
-                        // Kurs 2 (away_win)
-                        await connection.query(
-                            'INSERT INTO kursy (mecz_id, rodzaj, typ, opis, kurs, status) VALUES (?, ?, ?, ?, ?, ?)',
-                            [matchId, '1X2', '2', awayName, preMatchOdds.away_win, 'AKTYWNY']
-                        );
-                    }
-                } else {
-                    // Fallback: generuj losowe kursy jeśli brak pre_match_odds
-                    const [existingOdds] = await connection.query('SELECT count(*) as cnt FROM kursy WHERE mecz_id = ?', [matchId]);
-                    if (existingOdds[0].cnt === 0) {
-                        const k1 = (Math.random() * 1.5 + 1.5).toFixed(2);
-                        const kx = (Math.random() * 1.0 + 3.0).toFixed(2);
-                        const k2 = (Math.random() * 2.0 + 1.8).toFixed(2);
+                    if (preMatchOdds) {
+                        await prisma.kursy.createMany({
+                            data: [
+                                { mecz_id: matchId, rodzaj: '1X2', typ: '1', opis: homeName, kurs: preMatchOdds.home_win, status: 'AKTYWNY' },
+                                { mecz_id: matchId, rodzaj: '1X2', typ: 'X', opis: 'Remis', kurs: preMatchOdds.draw, status: 'AKTYWNY' },
+                                { mecz_id: matchId, rodzaj: '1X2', typ: '2', opis: awayName, kurs: preMatchOdds.away_win, status: 'AKTYWNY' }
+                            ]
+                        });
+                    } else {
+                        // Fallback: generuj losowe kursy jeśli brak pre_match_odds
+                        const k1 = parseFloat((Math.random() * 1.5 + 1.5).toFixed(2));
+                        const kx = parseFloat((Math.random() * 1.0 + 3.0).toFixed(2));
+                        const k2 = parseFloat((Math.random() * 2.0 + 1.8).toFixed(2));
                         
-                        await connection.query(
-                            'INSERT INTO kursy (mecz_id, rodzaj, typ, opis, kurs, status) VALUES (?, ?, ?, ?, ?, ?)',
-                            [matchId, '1X2', '1', homeName, k1, 'AKTYWNY']
-                        );
-                        await connection.query(
-                            'INSERT INTO kursy (mecz_id, rodzaj, typ, opis, kurs, status) VALUES (?, ?, ?, ?, ?, ?)',
-                            [matchId, '1X2', 'X', 'Remis', kx, 'AKTYWNY']
-                        );
-                        await connection.query(
-                            'INSERT INTO kursy (mecz_id, rodzaj, typ, opis, kurs, status) VALUES (?, ?, ?, ?, ?, ?)',
-                            [matchId, '1X2', '2', awayName, k2, 'AKTYWNY']
-                        );
+                        await prisma.kursy.createMany({
+                            data: [
+                                { mecz_id: matchId, rodzaj: '1X2', typ: '1', opis: homeName, kurs: k1, status: 'AKTYWNY' },
+                                { mecz_id: matchId, rodzaj: '1X2', typ: 'X', opis: 'Remis', kurs: kx, status: 'AKTYWNY' },
+                                { mecz_id: matchId, rodzaj: '1X2', typ: '2', opis: awayName, kurs: k2, status: 'AKTYWNY' }
+                            ]
+                        });
                     }
                 }
+                
+                console.log(`Mecz ${homeName} vs ${awayName} zaimportowany (ID: ${matchId})`);
+            } catch (matchErr) {
+                console.error(`Błąd importu meczu ${matchData.home_team} vs ${matchData.away_team}:`, matchErr);
             }
-
-            await connection.commit();
-            console.log(`Import zakończony sukcesem. Zaimportowano ${matches.length} meczów.`);
-        } catch (err) {
-            await connection.rollback();
-            console.error('Błąd podczas importu danych:', err);
-            throw err;
-        } finally {
-            connection.release();
         }
+
+        console.log(`Import zakończony sukcesem. Zaimportowano ${matches.length} meczów.`);
 
     } catch (err) {
         if (err.response) {

@@ -1,11 +1,11 @@
-import db from '../db.js'
+import prisma from '../prisma.js';
 
 export const getUsers = async (req, res) => {
-	try {
-		const [rows] = await db.query('SELECT * FROM uzytkownicy')
-		res.json(rows)
-	} catch (err) {
-		console.error('Błąd podczas pobierania gier:', err)
-		res.status(500).send('Błąd serwera')
-	}
-}
+    try {
+        const users = await prisma.uzytkownicy.findMany();
+        res.json(users);
+    } catch (err) {
+        console.error('Błąd podczas pobierania użytkowników:', err);
+        res.status(500).send('Błąd serwera');
+    }
+};

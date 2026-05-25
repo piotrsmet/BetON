@@ -1,0 +1,181 @@
+generator client {
+  provider   = "prisma-client-js"
+  engineType = "library"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model kupony {
+  id                  Int             @id @default(autoincrement())
+  uzytkownik_id       Int
+  data_utworzenia     DateTime?       @default(now())
+  stawka              Decimal         @db.Decimal(10, 2)
+  kurs_calkowity      Decimal         @db.Decimal(10, 2)
+  potencjalna_wygrana Decimal         @db.Decimal(10, 2)
+  status              kupony_status   @default(OCZEKUJACY)
+  uzytkownicy         uzytkownicy     @relation(fields: [uzytkownik_id], references: [id], onDelete: Cascade)
+  kupon_pozycje       kupon_pozycje[]
+}
+
+enum kupony_status {
+  OCZEKUJACY
+  WYGRANY
+  PRZEGRANY
+}
+
+model kupon_pozycje {
+  id              Int                   @id @default(autoincrement())
+  kupon_id        Int
+  kurs_id         Int
+  kurs_w_momencie Decimal               @db.Decimal(6, 2)
+  status          kupon_pozycje_status? @default(OCZEKUJACY)
+  kupony          kupony                @relation(fields: [kupon_id], references: [id], onDelete: Cascade)
+  kursy           kursy                 @relation(fields: [kurs_id], references: [id])
+}
+
+enum kupon_pozycje_status {
+  OCZEKUJACY
+  WYGRANY
+  PRZEGRANY
+  ZWROT
+}
+
+model kursy {
+  id            Int             @id @default(autoincrement())
+  mecz_id       Int
+  rodzaj        String          @db.VarChar(50)
+  typ           String          @db.VarChar(50)
+  opis          String?         @db.VarChar(150)
+  kurs          Decimal         @db.Decimal(6, 2)
+  status        kursy_status?   @default(AKTYWNY)
+  wynik         kursy_wynik?    @default(PENDING)
+  mecze         mecze           @relation(fields: [mecz_id], references: [id], onDelete: Cascade)
+  kupon_pozycje kupon_pozycje[]
+}
+
+enum kursy_status {
+  AKTYWNY
+  ZABLOKOWANY
+  ROZTRZYGNIETY
+}
+
+enum kursy_wynik {
+  WIN
+  LOSS
+  VOID
+  PENDING
+}
+
+model mecze {
+  id               Int                @id @default(autoincrement())
+  mid              Int?               @unique
+  nazwa_gospodarza String             @db.VarChar(100)
+  nazwa_goscia     String             @db.VarChar(100)
+  data_spotkania   DateTime
+  wynik_gospodarz  Int?
+  wynik_gosc       Int?
+  status           mecze_status?      @default(PLANOWANY)
+  liga             String?            @db.VarChar(100)
+  logo_gospodarza  String?            @db.VarChar(255)
+  logo_goscia      String?            @db.VarChar(255)
+  kursy            kursy[]
+  przebieg_meczu   przebieg_meczu[]
+  statystyki_meczu statystyki_meczu[]
+}
+
+enum mecze_status {
+  PLANOWANY
+  TRWA
+  ZAKONCZONY
+  PRZERWANY
+  ODWOLANY
+}
+
+model przebieg_meczu {
+  id                        Int      @id @default(autoincrement())
+  mecz_id                   Int
+  minuta                    Int
+  wynik                     String   @db.VarChar(10)
+  posiadanie                String   @db.VarChar(10)
+  komentarz                 String?  @db.Text
+  rozne_gospodarz           Int?     @default(0)
+  rozne_gosc                Int?     @default(0)
+  faule_gospodarz           Int?     @default(0)
+  faule_gosc                Int?     @default(0)
+  strzaly_gospodarz         Int?     @default(0)
+  strzaly_gosc              Int?     @default(0)
+  strzaly_celne_gospodarz   Int?     @default(0)
+  strzaly_celne_gosc        Int?     @default(0)
+  zolte_kartki_gospodarz    Int?     @default(0)
+  zolte_kartki_gosc         Int?     @default(0)
+  czerwone_kartki_gospodarz Int?     @default(0)
+  czerwone_kartki_gosc      Int?     @default(0)
+  posiadanie_gospodarz      Decimal? @default(50.00) @db.Decimal(5, 2)
+  posiadanie_gosc           Decimal? @default(50.00) @db.Decimal(5, 2)
+  mecze                     mecze    @relation(fields: [mecz_id], references: [id], onDelete: Cascade)
+}
+
+model sessions {
+  session_id String  @id @db.VarChar(128)
+  expires    Int
+  data       String? @db.MediumText
+}
+
+model statystyki_meczu {
+  id                        Int   @id @default(autoincrement())
+  mecz_id                   Int   @unique
+  gole_gospodarz            Int?  @default(0)
+  gole_gosc                 Int?  @default(0)
+  rozne_gospodarz           Int?  @default(0)
+  rozne_gosc                Int?  @default(0)
+  faule_gospodarz           Int?  @default(0)
+  faule_gosc                Int?  @default(0)
+  zolte_kartki_gospodarz    Int?  @default(0)
+  zolte_kartki_gosc         Int?  @default(0)
+  czerwone_kartki_gospodarz Int?  @default(0)
+  czerwone_kartki_gosc      Int?  @default(0)
+  strzaly_gospodarz         Int?  @default(0)
+  strzaly_gosc              Int?  @default(0)
+  strzaly_celne_gospodarz   Int?  @default(0)
+  strzaly_celne_gosc        Int?  @default(0)
+  posiadanie_gospodarz      Int?  @default(50)
+  posiadanie_gosc           Int?  @default(50)
+  mecze                     mecze @relation(fields: [mecz_id], references: [id], onDelete: Cascade)
+}
+
+model transakcje {
+  id            Int            @id @default(autoincrement())
+  uzytkownik_id Int
+  typ           transakcje_typ
+  kwota         Decimal        @db.Decimal(10, 2)
+  data          DateTime?      @default(now())
+  opis          String?        @db.VarChar(255)
+  uzytkownicy   uzytkownicy    @relation(fields: [uzytkownik_id], references: [id], onDelete: Cascade)
+}
+
+enum transakcje_typ {
+  WPLATA
+  WYPLATA
+  STAWKA
+  WYGRANA
+}
+
+model uzytkownicy {
+  id               Int               @id @default(autoincrement())
+  nazwa            String            @unique @db.VarChar(100)
+  email            String            @unique @db.VarChar(255)
+  haslo            String            @db.VarChar(255)
+  saldo            Decimal           @default(0.00) @db.Decimal(10, 2)
+  data_rejestracji DateTime?         @default(now())
+  rola             uzytkownicy_rola? @default(user)
+  kupony           kupony[]
+  transakcje       transakcje[]
+}
+
+enum uzytkownicy_rola {
+  user
+  admin
+}
