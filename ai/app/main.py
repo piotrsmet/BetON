@@ -316,6 +316,20 @@ async def compute_live_odds(request: LiveOddsRequest):
         over_cards_p = 1 / (1 + exp(-z_cards))
         under_cards_p = 1 - over_cards_p
 
+        # ---- SHOTS ON TARGET ----
+        total_sot = request.home_shots_on_target + request.away_shots_on_target
+        expected_sot = total_sot + 8.5 * remaining
+        z_sot = (expected_sot - request.sot_line) / max(1.0, 1.8 * remaining + 0.4)
+        over_sot_p = 1 / (1 + exp(-z_sot))
+        under_sot_p = 1 - over_sot_p
+
+        # ---- OFFSIDES ----
+        total_offsides = request.home_offsides + request.away_offsides
+        expected_offsides = total_offsides + 3.5 * remaining
+        z_off = (expected_offsides - request.offsides_line) / max(0.8, 1.2 * remaining + 0.3)
+        over_off_p = 1 / (1 + exp(-z_off))
+        under_off_p = 1 - over_off_p
+
         # Zamiana P -> kurs (z marginesem). Mała losowość daje "żywy" wygląd kursów.
         def to_odd(p):
             p = max(0.02, min(0.98, p))
@@ -334,7 +348,11 @@ async def compute_live_odds(request: LiveOddsRequest):
             "over_corners": to_odd(over_corners_p),
             "under_corners": to_odd(under_corners_p),
             "over_cards": to_odd(over_cards_p),
-            "under_cards": to_odd(under_cards_p)
+            "under_cards": to_odd(under_cards_p),
+            "over_sot": to_odd(over_sot_p),
+            "under_sot": to_odd(under_sot_p),
+            "over_offsides": to_odd(over_off_p),
+            "under_offsides": to_odd(under_off_p)
         }
 
         metrics.record_request(True, time.time() - start_time, "live_odds")

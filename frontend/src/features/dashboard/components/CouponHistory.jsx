@@ -5,6 +5,7 @@ const CashoutControl = ({ coupon, onCashedOut }) => {
     const [info, setInfo] = useState(null);
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState(null);
+    const [confirming, setConfirming] = useState(false);
 
     const fetchCashout = async () => {
         try {
@@ -21,8 +22,6 @@ const CashoutControl = ({ coupon, onCashedOut }) => {
 
     const handleCashout = async () => {
         if (!info?.available) return;
-        const ok = window.confirm(`Wypłacić ${info.value.toFixed(2)} PLN?`);
-        if (!ok) return;
         setSubmitting(true);
         setError(null);
         try {
@@ -32,37 +31,110 @@ const CashoutControl = ({ coupon, onCashedOut }) => {
             setError(err.message);
         } finally {
             setSubmitting(false);
+            setConfirming(false);
         }
     };
 
     if (!info) return null;
     const stake = Number(coupon.stawka);
-    const pct = stake > 0 ? Math.round((info.value / stake) * 100) : 0;
+    const potential = Number(coupon.potencjalna_wygrana);
+    const pctOfPotential = potential > 0 ? Math.min(100, Math.round((info.value / potential) * 100)) : 0;
+    const profit = info.value - stake;
+
+    if (!info.available) {
+        return (
+            <div className="mt-3 rounded-xl px-4 py-3 bg-dark/40 border border-white/5 flex items-center gap-3 text-sm">
+                <span className="text-white/30 text-lg">🚫</span>
+                <div>
+                    <div className="font-bold text-white/70">Cashout niedostępny</div>
+                    <div className="text-xs text-white/40">{info.reason || 'Spróbuj później'}</div>
+                </div>
+            </div>
+        );
+    }
 
     return (
-        <div className="mt-3 bg-emerald-900/20 border border-emerald-500/30 rounded-xl p-3">
-            <div className="flex items-center justify-between mb-2">
-                <span className="text-xs uppercase tracking-widest text-emerald-300 font-bold">Cashout</span>
-                <span className="text-[10px] text-white/40">aktualizacja na żywo</span>
-            </div>
-            {info.available ? (
-                <div className="flex items-center justify-between gap-3">
-                    <div>
-                        <div className="text-2xl font-black text-emerald-300">{info.value.toFixed(2)} PLN</div>
-                        <div className="text-xs text-white/60">{pct}% stawki</div>
+        <div className="mt-3 rounded-xl overflow-hidden border border-emerald-400/30 bg-gradient-to-br from-emerald-900/30 via-secondary/40 to-dark/40">
+            <div className="px-4 py-3">
+                <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                        <span className="text-xs uppercase tracking-[0.2em] text-emerald-300 font-black">Cashout</span>
+                        <span className="text-[10px] text-emerald-300/60 bg-emerald-300/10 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 bg-emerald-300 rounded-full animate-pulse" />
+                            LIVE
+                        </span>
                     </div>
-                    <button
-                        disabled={submitting}
-                        onClick={handleCashout}
-                        className="bg-gradient-to-r from-emerald-400 to-accent text-dark font-black px-4 py-3 rounded-xl shadow hover:shadow-emerald-400/40 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
-                    >
-                        {submitting ? 'Wypłacam…' : 'Wypłać teraz'}
-                    </button>
+                    <div className="text-right">
+                        <div className="text-2xl md:text-3xl font-black text-emerald-300 leading-none">
+                            {info.value.toFixed(2)} <span className="text-base text-emerald-300/70">PLN</span>
+                        </div>
+                        <div className="text-[11px] text-white/50 mt-1">
+                            {pctOfPotential}% potencjalnej wygranej
+                        </div>
+                    </div>
                 </div>
-            ) : (
-                <div className="text-sm text-white/60">{info.reason || 'Cashout niedostępny'}</div>
-            )}
-            {error && <div className="mt-2 text-xs text-red-300">{error}</div>}
+
+                {/* Pasek progresu */}
+                <div className="h-1.5 bg-dark/60 rounded-full overflow-hidden mb-3">
+                    <div
+                        className="h-full bg-gradient-to-r from-emerald-400 to-accent transition-all duration-500"
+                        style={{ width: `${pctOfPotential}%` }}
+                    />
+                </div>
+
+                {/* Statystyki */}
+                <div className="grid grid-cols-3 gap-2 mb-3 text-xs">
+                    <div className="bg-dark/40 rounded-lg p-2">
+                        <div className="text-white/40 text-[10px] uppercase tracking-wider">Stawka</div>
+                        <div className="text-white font-bold">{stake.toFixed(2)}</div>
+                    </div>
+                    <div className="bg-dark/40 rounded-lg p-2">
+                        <div className="text-white/40 text-[10px] uppercase tracking-wider">Zysk</div>
+                        <div className={`font-bold ${profit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                            {profit >= 0 ? '+' : ''}{profit.toFixed(2)}
+                        </div>
+                    </div>
+                    <div className="bg-dark/40 rounded-lg p-2">
+                        <div className="text-white/40 text-[10px] uppercase tracking-wider">Max</div>
+                        <div className="text-white/70 font-bold">{potential.toFixed(2)}</div>
+                    </div>
+                </div>
+
+                {/* Przyciski */}
+                {!confirming ? (
+                    <button
+                        onClick={() => setConfirming(true)}
+                        disabled={submitting}
+                        className="w-full bg-gradient-to-r from-emerald-400 to-accent text-dark font-black py-3 rounded-xl shadow-lg hover:shadow-emerald-400/40 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    >
+                        <span>💰</span>
+                        <span>Wypłać {info.value.toFixed(2)} PLN</span>
+                    </button>
+                ) : (
+                    <div className="grid grid-cols-2 gap-2">
+                        <button
+                            onClick={() => setConfirming(false)}
+                            disabled={submitting}
+                            className="bg-white/10 hover:bg-white/20 text-white font-bold py-3 rounded-xl transition-all disabled:opacity-50"
+                        >
+                            Anuluj
+                        </button>
+                        <button
+                            onClick={handleCashout}
+                            disabled={submitting}
+                            className="bg-gradient-to-r from-emerald-400 to-accent text-dark font-black py-3 rounded-xl shadow hover:shadow-emerald-400/40 transition-all disabled:opacity-50"
+                        >
+                            {submitting ? 'Wypłacam…' : 'Potwierdź'}
+                        </button>
+                    </div>
+                )}
+
+                {error && (
+                    <div className="mt-2 text-xs text-red-300 bg-red-500/10 border border-red-500/30 rounded-lg p-2">
+                        {error}
+                    </div>
+                )}
+            </div>
         </div>
     );
 };

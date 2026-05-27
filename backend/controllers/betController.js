@@ -1,5 +1,8 @@
 import prisma from '../prisma.js';
 
+// Rabat korelacyjny dla bet buildera (multi-leg w obrębie 1 meczu)
+const BET_BUILDER_DISCOUNT = 0.80;
+
 export const createCoupon = async (req, res) => {
     const userId = req.userId;
 
@@ -18,7 +21,6 @@ export const createCoupon = async (req, res) => {
             if (!user) throw new Error('Użytkownik nie istnieje');
             if (Number(user.saldo) < Number(stawka)) throw new Error('Niewystarczające środki');
 
-            let totalOdds = 1.0;
             const validKursy = [];
 
             for (const kursId of kursy) {
@@ -30,8 +32,33 @@ export const createCoupon = async (req, res) => {
                 if (odd.status === 'ZABLOKOWANY') throw new Error(`Kurs ${odd.opis} jest zablokowany (zmiana kursu) - spróbuj za chwilę`);
                 if (odd.status !== 'AKTYWNY') throw new Error(`Kurs ${odd.opis} jest nieaktywny`);
                 if (odd.mecze?.status === 'ZAKONCZONY') throw new Error(`Mecz ${odd.mecze.nazwa_gospodarza} - ${odd.mecze.nazwa_goscia} jest już zakończony`);
-                totalOdds *= Number(odd.kurs);
                 validKursy.push(odd);
+            }
+
+            // Sprawdź wzajemnie wykluczające się kursy w tym samym rynku (np. OVER i UNDER)
+            const seen = new Set();
+            for (const k of validKursy) {
+                const key = `${k.mecz_id}|${k.rodzaj}`;
+                if (k.rodzaj !== 'HTFT' && seen.has(key)) {
+                    throw new Error(`Nie możesz obstawić dwóch wykluczających się kursów w rynku ${k.rodzaj}`);
+                }
+                seen.add(key);
+            }
+
+            // Bet builder - grupuj po mecz_id, każda grupa >=2 dostaje rabat korelacyjny
+            const byMatch = validKursy.reduce((acc, k) => {
+                (acc[k.mecz_id] = acc[k.mecz_id] || []).push(k);
+                return acc;
+            }, {});
+
+            let totalOdds = 1.0;
+            for (const matchId of Object.keys(byMatch)) {
+                const legs = byMatch[matchId];
+                let groupOdds = legs.reduce((acc, k) => acc * Number(k.kurs), 1);
+                if (legs.length >= 2) {
+                    groupOdds *= BET_BUILDER_DISCOUNT;
+                }
+                totalOdds *= groupOdds;
             }
 
             totalOdds = parseFloat(totalOdds.toFixed(2));
@@ -51,6 +78,19 @@ export const createCoupon = async (req, res) => {
                 }
             });
 
+            // Wstaw rabat bet buildera w kurs_w_momencie pierwszej pozycji z każdej grupy
+            // (tak żeby settlement dawał spójną wypłatę z totalOdds)
+            const firstOfGroup = new Set();
+            const pozycjeData = validKursy.map(odd => {
+                let kursLockedIn = Number(odd.kurs);
+                const legs = byMatch[odd.mecz_id];
+                if (legs.length >= 2 && !firstOfGroup.has(odd.mecz_id)) {
+                    firstOfGroup.add(odd.mecz_id);
+                    kursLockedIn = parseFloat((kursLockedIn * BET_BUILDER_DISCOUNT).toFixed(4));
+                }
+                return { kurs_id: odd.id, kurs_w_momencie: kursLockedIn };
+            });
+
             const coupon = await tx.kupony.create({
                 data: {
                     uzytkownik_id: userId,
@@ -58,12 +98,7 @@ export const createCoupon = async (req, res) => {
                     kurs_calkowity: totalOdds,
                     potencjalna_wygrana: simplePotentialWin,
                     status: 'OCZEKUJACY',
-                    kupon_pozycje: {
-                        create: validKursy.map(odd => ({
-                            kurs_id: odd.id,
-                            kurs_w_momencie: odd.kurs
-                        }))
-                    }
+                    kupon_pozycje: { create: pozycjeData }
                 }
             });
 

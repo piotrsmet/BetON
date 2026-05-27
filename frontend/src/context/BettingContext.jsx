@@ -10,27 +10,36 @@ export const useBetting = () => {
     return context;
 };
 
+// Rynki w których kursy się wykluczają (OVER/UNDER, YES/NO) - przy dodaniu nowego z tej samej pary podmieniamy.
+// HTFT to zbiór 9 opcji - tu też wykluczamy (jeden wybór na mecz).
+const EXCLUSIVE_RODZAJ = new Set(['1X2', 'OU_GOALS', 'BTTS', 'OU_CORNERS', 'OU_CARDS', 'OU_SOT', 'OU_OFFSIDES', 'HTFT']);
+
 export const BettingProvider = ({ children }) => {
     const [bets, setBets] = useState([]);
 
+    /**
+     * newBet: { matchId, courseId, type, ratio, matchName, selectionName, rodzaj }
+     * - klik na ten sam courseId -> usuwa (toggle)
+     * - klik na inny courseId tego samego rynku (rodzaj) w tym samym meczu -> podmienia
+     * - klik na inny rodzaj w tym samym meczu -> dodaje (bet builder)
+     */
     const addBet = (newBet) => {
-        // newBet structure: { matchId, courseId, type, ratio, matchName, selectionName }
-        setBets((prevBets) => {
-            // Check if bet from this match already exists
-            const existingBetIndex = prevBets.findIndex(b => b.matchId === newBet.matchId);
-            
-            if (existingBetIndex >= 0) {
-                // If clicking same odd again, remove it (toggle)
-                if (prevBets[existingBetIndex].courseId === newBet.courseId) {
-                    return prevBets.filter((_, i) => i !== existingBetIndex);
+        setBets((prev) => {
+            // Toggle dokładnie tego samego kursu
+            const exact = prev.findIndex(b => b.courseId === newBet.courseId);
+            if (exact >= 0) return prev.filter((_, i) => i !== exact);
+
+            // Podmiana w obrębie tego samego rynku
+            if (newBet.rodzaj && EXCLUSIVE_RODZAJ.has(newBet.rodzaj)) {
+                const sameMarketIdx = prev.findIndex(b => b.matchId === newBet.matchId && b.rodzaj === newBet.rodzaj);
+                if (sameMarketIdx >= 0) {
+                    const next = [...prev];
+                    next[sameMarketIdx] = newBet;
+                    return next;
                 }
-                // If clicking different odd from same match, replace it
-                const updatedBets = [...prevBets];
-                updatedBets[existingBetIndex] = newBet;
-                return updatedBets;
             }
-            
-            return [...prevBets, newBet];
+
+            return [...prev, newBet];
         });
     };
 

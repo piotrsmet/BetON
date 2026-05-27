@@ -116,12 +116,16 @@ const persistMatchToDb = async (matchData, scheduledDate) => {
     const minutes = matchData.minutes || [];
     if (minutes.length > 0) {
         const last = minutes[minutes.length - 1];
+        // Wynik do przerwy - z minuty 45 lub ostatniej <= 45
+        const htRow = minutes.filter(m => m.minute <= 45).pop() || minutes[0];
         await prisma.statystyki_meczu.deleteMany({ where: { mecz_id: matchId } });
         await prisma.statystyki_meczu.create({
             data: {
                 mecz_id: matchId,
                 gole_gospodarz: last.home_score ?? 0,
                 gole_gosc: last.away_score ?? 0,
+                gole_gospodarz_ht: htRow.home_score ?? 0,
+                gole_gosc_ht: htRow.away_score ?? 0,
                 rozne_gospodarz: last.home_corners ?? 0,
                 rozne_gosc: last.away_corners ?? 0,
                 faule_gospodarz: last.home_fouls ?? 0,
@@ -133,7 +137,9 @@ const persistMatchToDb = async (matchData, scheduledDate) => {
                 strzaly_gospodarz: last.home_shots ?? 0,
                 strzaly_gosc: last.away_shots ?? 0,
                 strzaly_celne_gospodarz: last.home_shots_on_target ?? 0,
-                strzaly_celne_gosc: last.away_shots_on_target ?? 0
+                strzaly_celne_gosc: last.away_shots_on_target ?? 0,
+                spalone_gospodarz: last.home_offsides ?? 0,
+                spalone_gosc: last.away_offsides ?? 0
             }
         });
 
@@ -158,6 +164,8 @@ const persistMatchToDb = async (matchData, scheduledDate) => {
                 zolte_kartki_gosc: m.away_yellow_cards ?? 0,
                 czerwone_kartki_gospodarz: m.home_red_cards ?? 0,
                 czerwone_kartki_gosc: m.away_red_cards ?? 0,
+                spalone_gospodarz: m.home_offsides ?? 0,
+                spalone_gosc: m.away_offsides ?? 0,
                 posiadanie_gospodarz: m.home_possession ?? 50,
                 posiadanie_gosc: m.away_possession ?? 50
             }))
@@ -172,6 +180,8 @@ const persistMatchToDb = async (matchData, scheduledDate) => {
             const goalsLine = o.goals_line ?? 2.5;
             const cornersLine = o.corners_line ?? 9.5;
             const cardsLine = o.cards_line ?? 4.5;
+            const sotLine = o.sot_line ?? 8.5;
+            const offsidesLine = o.offsides_line ?? 3.5;
             await prisma.kursy.createMany({
                 data: [
                     { mecz_id: matchId, rodzaj: '1X2', typ: '1', opis: homeName, kurs: o.home_win, status: 'AKTYWNY' },
@@ -184,7 +194,20 @@ const persistMatchToDb = async (matchData, scheduledDate) => {
                     { mecz_id: matchId, rodzaj: 'OU_CORNERS', typ: 'OVER', linia: cornersLine, opis: `Powyżej ${cornersLine} rzutów rożnych`, kurs: o.corners_over ?? 1.9, status: 'AKTYWNY' },
                     { mecz_id: matchId, rodzaj: 'OU_CORNERS', typ: 'UNDER', linia: cornersLine, opis: `Poniżej ${cornersLine} rzutów rożnych`, kurs: o.corners_under ?? 1.9, status: 'AKTYWNY' },
                     { mecz_id: matchId, rodzaj: 'OU_CARDS', typ: 'OVER', linia: cardsLine, opis: `Powyżej ${cardsLine} kartek`, kurs: o.cards_over ?? 1.9, status: 'AKTYWNY' },
-                    { mecz_id: matchId, rodzaj: 'OU_CARDS', typ: 'UNDER', linia: cardsLine, opis: `Poniżej ${cardsLine} kartek`, kurs: o.cards_under ?? 1.9, status: 'AKTYWNY' }
+                    { mecz_id: matchId, rodzaj: 'OU_CARDS', typ: 'UNDER', linia: cardsLine, opis: `Poniżej ${cardsLine} kartek`, kurs: o.cards_under ?? 1.9, status: 'AKTYWNY' },
+                    { mecz_id: matchId, rodzaj: 'OU_SOT', typ: 'OVER', linia: sotLine, opis: `Powyżej ${sotLine} celnych strzałów`, kurs: o.sot_over ?? 1.9, status: 'AKTYWNY' },
+                    { mecz_id: matchId, rodzaj: 'OU_SOT', typ: 'UNDER', linia: sotLine, opis: `Poniżej ${sotLine} celnych strzałów`, kurs: o.sot_under ?? 1.9, status: 'AKTYWNY' },
+                    { mecz_id: matchId, rodzaj: 'OU_OFFSIDES', typ: 'OVER', linia: offsidesLine, opis: `Powyżej ${offsidesLine} spalonych`, kurs: o.offsides_over ?? 1.9, status: 'AKTYWNY' },
+                    { mecz_id: matchId, rodzaj: 'OU_OFFSIDES', typ: 'UNDER', linia: offsidesLine, opis: `Poniżej ${offsidesLine} spalonych`, kurs: o.offsides_under ?? 1.9, status: 'AKTYWNY' },
+                    { mecz_id: matchId, rodzaj: 'HTFT', typ: '1/1', opis: '1. połowa / mecz: 1 / 1', kurs: o.htft_1_1, status: 'AKTYWNY' },
+                    { mecz_id: matchId, rodzaj: 'HTFT', typ: '1/X', opis: '1. połowa / mecz: 1 / X', kurs: o.htft_1_x, status: 'AKTYWNY' },
+                    { mecz_id: matchId, rodzaj: 'HTFT', typ: '1/2', opis: '1. połowa / mecz: 1 / 2', kurs: o.htft_1_2, status: 'AKTYWNY' },
+                    { mecz_id: matchId, rodzaj: 'HTFT', typ: 'X/1', opis: '1. połowa / mecz: X / 1', kurs: o.htft_x_1, status: 'AKTYWNY' },
+                    { mecz_id: matchId, rodzaj: 'HTFT', typ: 'X/X', opis: '1. połowa / mecz: X / X', kurs: o.htft_x_x, status: 'AKTYWNY' },
+                    { mecz_id: matchId, rodzaj: 'HTFT', typ: 'X/2', opis: '1. połowa / mecz: X / 2', kurs: o.htft_x_2, status: 'AKTYWNY' },
+                    { mecz_id: matchId, rodzaj: 'HTFT', typ: '2/1', opis: '1. połowa / mecz: 2 / 1', kurs: o.htft_2_1, status: 'AKTYWNY' },
+                    { mecz_id: matchId, rodzaj: 'HTFT', typ: '2/X', opis: '1. połowa / mecz: 2 / X', kurs: o.htft_2_x, status: 'AKTYWNY' },
+                    { mecz_id: matchId, rodzaj: 'HTFT', typ: '2/2', opis: '1. połowa / mecz: 2 / 2', kurs: o.htft_2_2, status: 'AKTYWNY' }
                 ]
             });
         }

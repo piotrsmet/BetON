@@ -24,7 +24,9 @@ const computeLiveSnapshot = (match, currentMinute) => {
             home_score: 0, away_score: 0,
             home_corners: 0, away_corners: 0,
             home_yellow_cards: 0, away_yellow_cards: 0,
-            home_red_cards: 0, away_red_cards: 0
+            home_red_cards: 0, away_red_cards: 0,
+            home_shots_on_target: 0, away_shots_on_target: 0,
+            home_offsides: 0, away_offsides: 0
         };
     }
     const last = rows[rows.length - 1];
@@ -38,7 +40,11 @@ const computeLiveSnapshot = (match, currentMinute) => {
         home_yellow_cards: last.zolte_kartki_gospodarz ?? 0,
         away_yellow_cards: last.zolte_kartki_gosc ?? 0,
         home_red_cards: last.czerwone_kartki_gospodarz ?? 0,
-        away_red_cards: last.czerwone_kartki_gosc ?? 0
+        away_red_cards: last.czerwone_kartki_gosc ?? 0,
+        home_shots_on_target: last.strzaly_celne_gospodarz ?? 0,
+        away_shots_on_target: last.strzaly_celne_gosc ?? 0,
+        home_offsides: last.spalone_gospodarz ?? 0,
+        away_offsides: last.spalone_gosc ?? 0
     };
 };
 
@@ -55,7 +61,11 @@ const applyLiveOddsToKursy = async (matchId, liveOdds, kursy) => {
         { rodzaj: 'OU_CORNERS', typ: 'OVER', value: liveOdds.over_corners },
         { rodzaj: 'OU_CORNERS', typ: 'UNDER', value: liveOdds.under_corners },
         { rodzaj: 'OU_CARDS', typ: 'OVER', value: liveOdds.over_cards },
-        { rodzaj: 'OU_CARDS', typ: 'UNDER', value: liveOdds.under_cards }
+        { rodzaj: 'OU_CARDS', typ: 'UNDER', value: liveOdds.under_cards },
+        { rodzaj: 'OU_SOT', typ: 'OVER', value: liveOdds.over_sot },
+        { rodzaj: 'OU_SOT', typ: 'UNDER', value: liveOdds.under_sot },
+        { rodzaj: 'OU_OFFSIDES', typ: 'OVER', value: liveOdds.over_offsides },
+        { rodzaj: 'OU_OFFSIDES', typ: 'UNDER', value: liveOdds.under_offsides }
     ];
     const nextUpdateAt = new Date(Date.now() + UPDATE_INTERVAL_MS);
     for (const entry of map) {
@@ -140,9 +150,15 @@ export const tickLiveOdds = async () => {
                     away_yellow_cards: snapshot.away_yellow_cards,
                     home_red_cards: snapshot.home_red_cards,
                     away_red_cards: snapshot.away_red_cards,
+                    home_shots_on_target: snapshot.home_shots_on_target,
+                    away_shots_on_target: snapshot.away_shots_on_target,
+                    home_offsides: snapshot.home_offsides,
+                    away_offsides: snapshot.away_offsides,
                     goals_line: Number(toUpdate.find(k => k.rodzaj === 'OU_GOALS')?.linia ?? 2.5),
                     corners_line: Number(toUpdate.find(k => k.rodzaj === 'OU_CORNERS')?.linia ?? 9.5),
-                    cards_line: Number(toUpdate.find(k => k.rodzaj === 'OU_CARDS')?.linia ?? 4.5)
+                    cards_line: Number(toUpdate.find(k => k.rodzaj === 'OU_CARDS')?.linia ?? 4.5),
+                    sot_line: Number(toUpdate.find(k => k.rodzaj === 'OU_SOT')?.linia ?? 8.5),
+                    offsides_line: Number(toUpdate.find(k => k.rodzaj === 'OU_OFFSIDES')?.linia ?? 3.5)
                 }, { timeout: 8000 });
                 if (aiResp.data.status === 'ok') {
                     await applyLiveOddsToKursy(match.id, aiResp.data.data, refreshedKursy);

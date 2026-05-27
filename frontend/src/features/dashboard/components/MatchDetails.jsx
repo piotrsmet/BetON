@@ -116,7 +116,7 @@ export const MatchDetails = ({ matchId, onBack }) => {
 
     }, [match]);
 
-    const handleBetClick = (type, courseId, ratio, selectionLabel, locked) => {
+    const handleBetClick = (type, courseId, ratio, selectionLabel, locked, rodzaj) => {
         if (!ratio || !courseId || !match) return;
         if (locked) return;
         const fallback = type === '1' ? match.nazwa_gospodarza : type === '2' ? match.nazwa_goscia : 'Remis';
@@ -125,6 +125,7 @@ export const MatchDetails = ({ matchId, onBack }) => {
             courseId: courseId,
             type: type,
             ratio: ratio,
+            rodzaj: rodzaj || '1X2',
             matchName: `${match.nazwa_gospodarza} - ${match.nazwa_goscia}`,
             selectionName: selectionLabel || fallback
         });
@@ -181,7 +182,7 @@ export const MatchDetails = ({ matchId, onBack }) => {
                             <button
                                 key={typ}
                                 disabled={!odd || locked}
-                                onClick={() => handleBetClick(typ, odd?.id, odd?.kurs, `${title}: ${label}`, locked)}
+                                onClick={() => handleBetClick(typ, odd?.id, odd?.kurs, `${title}: ${label}`, locked, rodzaj)}
                                 className={`p-3 rounded-xl border flex flex-col items-center transition-all relative ${
                                     sel
                                     ? 'bg-accent text-dark border-accent'
@@ -192,6 +193,51 @@ export const MatchDetails = ({ matchId, onBack }) => {
                                 <span className={`font-bold text-lg transition-colors duration-500 ${trendClass(odd?.id)}`}>{odd?.kurs ?? '-'}</span>
                                 {locked && (
                                     <span className="absolute top-1 right-1 text-[10px] bg-dark/80 text-amber-300 px-1.5 py-0.5 rounded font-bold">🔒</span>
+                                )}
+                            </button>
+                        );
+                    })}
+                </div>
+            </div>
+        );
+    };
+
+    // HTFT - render 9-pole z 3 wierszami
+    const renderHtft = () => {
+        const list = oddsByRodzaj['HTFT'] || [];
+        if (list.length === 0) return null;
+        const map = Object.fromEntries(list.map(o => [o.typ, o]));
+        const layout = [
+            ['1/1', '1/X', '1/2'],
+            ['X/1', 'X/X', 'X/2'],
+            ['2/1', '2/X', '2/2']
+        ];
+        const labels = { '1': '1. poł', 'X': 'remis', '2': '2.' };
+        return (
+            <div className="bg-dark/30 rounded-2xl p-6 border border-white/5">
+                <h4 className="text-white font-bold mb-2">1. połowa / mecz</h4>
+                <p className="text-xs text-white/50 mb-4">Wybór wyniku do przerwy <b>i</b> wyniku końcowego.</p>
+                <div className="grid grid-cols-3 gap-2">
+                    {layout.flat().map(typ => {
+                        const odd = map[typ];
+                        const locked = isLocked(odd);
+                        const sel = odd && isSelected(odd.id);
+                        const [ht, ft] = typ.split('/');
+                        return (
+                            <button
+                                key={typ}
+                                disabled={!odd || locked}
+                                onClick={() => handleBetClick(typ, odd?.id, odd?.kurs, `HT/FT ${typ}`, locked, 'HTFT')}
+                                className={`p-2 rounded-xl border flex flex-col items-center transition-all relative ${
+                                    sel
+                                    ? 'bg-accent text-dark border-accent'
+                                    : 'bg-white/5 border-white/10 hover:bg-white/10 text-white'
+                                } ${!odd ? 'opacity-40 cursor-not-allowed' : ''} ${locked ? 'opacity-60 cursor-not-allowed animate-pulse' : ''}`}
+                            >
+                                <span className="text-[10px] opacity-60 font-bold tracking-wide">{ht} → {ft}</span>
+                                <span className={`font-bold text-base transition-colors duration-500 ${trendClass(odd?.id)}`}>{odd?.kurs ?? '-'}</span>
+                                {locked && (
+                                    <span className="absolute top-1 right-1 text-[9px] bg-dark/80 text-amber-300 px-1 rounded font-bold">🔒</span>
                                 )}
                             </button>
                         );
@@ -252,7 +298,7 @@ export const MatchDetails = ({ matchId, onBack }) => {
                                     <button
                                         key={odd.id}
                                         disabled={locked}
-                                        onClick={() => handleBetClick(odd.typ, odd.id, odd.kurs, undefined, locked)}
+                                        onClick={() => handleBetClick(odd.typ, odd.id, odd.kurs, undefined, locked, '1X2')}
                                         className={`p-3 rounded-xl border flex flex-col items-center transition-all relative ${
                                             sel
                                             ? 'bg-accent text-dark border-accent'
@@ -270,6 +316,22 @@ export const MatchDetails = ({ matchId, onBack }) => {
                         </div>
                     </div>
 
+                    {/* Bet builder info */}
+                    {(() => {
+                        const myMatchBets = bets.filter(b => b.matchId === match.id);
+                        if (myMatchBets.length < 2) return null;
+                        return (
+                            <div className="bg-gradient-to-r from-accent/20 to-emerald/20 border border-accent/40 rounded-2xl p-4">
+                                <div className="flex items-center gap-2 mb-1">
+                                    <span className="text-2xl">🎯</span>
+                                    <span className="font-black text-accent uppercase tracking-wider">Bet Builder</span>
+                                    <span className="bg-accent text-dark text-xs font-black px-2 py-0.5 rounded-full">x{myMatchBets.length}</span>
+                                </div>
+                                <p className="text-xs text-white/70">Zakłady z tego meczu zostaną złączone z rabatem korelacyjnym 20% (wszystkie muszą wejść).</p>
+                            </div>
+                        );
+                    })()}
+
                     {/* Liczba bramek (Over/Under) */}
                     {renderTwoWayMarket('Liczba bramek', 'OU_GOALS', 'OVER', 'UNDER', 'Powyżej', 'Poniżej')}
 
@@ -281,6 +343,15 @@ export const MatchDetails = ({ matchId, onBack }) => {
 
                     {/* Kartki (Over/Under) */}
                     {renderTwoWayMarket('Kartki', 'OU_CARDS', 'OVER', 'UNDER', 'Powyżej', 'Poniżej')}
+
+                    {/* Strzały celne (Over/Under) */}
+                    {renderTwoWayMarket('Celne strzały', 'OU_SOT', 'OVER', 'UNDER', 'Powyżej', 'Poniżej')}
+
+                    {/* Spalone (Over/Under) */}
+                    {renderTwoWayMarket('Spalone', 'OU_OFFSIDES', 'OVER', 'UNDER', 'Powyżej', 'Poniżej')}
+
+                    {/* HT/FT */}
+                    {renderHtft()}
 
                     {/* Live Stats */}
                     {currentStats && (

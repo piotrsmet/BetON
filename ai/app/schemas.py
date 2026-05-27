@@ -79,6 +79,8 @@ class MatchMinuteData(BaseModel):
     away_yellow_cards: int = Field(0, ge=0, le=11)
     home_red_cards: int = Field(0, ge=0, le=3)
     away_red_cards: int = Field(0, ge=0, le=3)
+    home_offsides: int = Field(0, ge=0, le=20)
+    away_offsides: int = Field(0, ge=0, le=20)
 
 
 class PreMatchOdds(BaseModel):
@@ -103,6 +105,27 @@ class PreMatchOdds(BaseModel):
     cards_line: float = Field(4.5, ge=0.5, le=15.5, description="Linia Over/Under kartek")
     cards_over: float = Field(1.9, gt=1.0, le=20.0)
     cards_under: float = Field(1.9, gt=1.0, le=20.0)
+
+    # Celne strzały (shots on target)
+    sot_line: float = Field(8.5, ge=0.5, le=30.5, description="Linia Over/Under celnych strzałów")
+    sot_over: float = Field(1.9, gt=1.0, le=20.0)
+    sot_under: float = Field(1.9, gt=1.0, le=20.0)
+
+    # Spalone (offsides)
+    offsides_line: float = Field(3.5, ge=0.5, le=20.5, description="Linia Over/Under spalonych")
+    offsides_over: float = Field(1.9, gt=1.0, le=20.0)
+    offsides_under: float = Field(1.9, gt=1.0, le=20.0)
+
+    # HT/FT (9 kombinacji)
+    htft_1_1: float = Field(4.5, gt=1.0, le=100.0)
+    htft_1_x: float = Field(15.0, gt=1.0, le=200.0)
+    htft_1_2: float = Field(35.0, gt=1.0, le=500.0)
+    htft_x_1: float = Field(6.0, gt=1.0, le=200.0)
+    htft_x_x: float = Field(4.5, gt=1.0, le=100.0)
+    htft_x_2: float = Field(7.5, gt=1.0, le=200.0)
+    htft_2_1: float = Field(45.0, gt=1.0, le=500.0)
+    htft_2_x: float = Field(16.0, gt=1.0, le=200.0)
+    htft_2_2: float = Field(5.5, gt=1.0, le=100.0)
 
     # Asian Handicap
     asian_handicap_line: float = Field(0.0, ge=-5.0, le=5.0)
@@ -206,9 +229,15 @@ class LiveOddsRequest(BaseModel):
     away_yellow_cards: int = Field(0, ge=0, le=22)
     home_red_cards: int = Field(0, ge=0, le=10)
     away_red_cards: int = Field(0, ge=0, le=10)
+    home_shots_on_target: int = Field(0, ge=0, le=40)
+    away_shots_on_target: int = Field(0, ge=0, le=40)
+    home_offsides: int = Field(0, ge=0, le=30)
+    away_offsides: int = Field(0, ge=0, le=30)
     goals_line: float = Field(2.5, ge=0.5, le=10.5)
     corners_line: float = Field(9.5, ge=2.5, le=25.5)
     cards_line: float = Field(4.5, ge=0.5, le=20.5)
+    sot_line: float = Field(8.5, ge=0.5, le=40.5)
+    offsides_line: float = Field(3.5, ge=0.5, le=30.5)
 
 
 class ToolCallRequest(BaseModel):

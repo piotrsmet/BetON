@@ -78,6 +78,9 @@ def generate_match_simulation(
     draw_prob = 0.25
     away_win_prob = 1 - home_win_prob - draw_prob
     
+    # HT/FT - prawdopodobieństwa z prostego modelu (gospodarz mocniejszy -> 1/1 bardziej prawdopodobne)
+    htft = _compute_htft_odds(home_win_prob, draw_prob, away_win_prob)
+
     odds = PreMatchOdds(
         home_win=round(0.95 / home_win_prob, 2),
         draw=round(0.95 / draw_prob, 2),
@@ -93,6 +96,21 @@ def generate_match_simulation(
         cards_line=4.5,
         cards_over=round(random.uniform(1.75, 2.1), 2),
         cards_under=round(random.uniform(1.7, 2.05), 2),
+        sot_line=8.5,
+        sot_over=round(random.uniform(1.75, 2.1), 2),
+        sot_under=round(random.uniform(1.75, 2.1), 2),
+        offsides_line=3.5,
+        offsides_over=round(random.uniform(1.75, 2.1), 2),
+        offsides_under=round(random.uniform(1.75, 2.1), 2),
+        htft_1_1=htft["1/1"],
+        htft_1_x=htft["1/X"],
+        htft_1_2=htft["1/2"],
+        htft_x_1=htft["X/1"],
+        htft_x_x=htft["X/X"],
+        htft_x_2=htft["X/2"],
+        htft_2_1=htft["2/1"],
+        htft_2_x=htft["2/X"],
+        htft_2_2=htft["2/2"],
         asian_handicap_line=round(random.uniform(-1.5, 1.5) * 2) / 2,
         asian_handicap_home=1.9,
         asian_handicap_away=1.9
@@ -120,11 +138,37 @@ def generate_match_simulation(
     return simulation.model_dump()
 
 
-def _generate_minute_by_minute(home_team: str, away_team: str, 
+def _compute_htft_odds(p_home: float, p_draw: float, p_away: float) -> Dict[str, float]:
+    """Heurystyka kursów HT/FT na podstawie prawdopodobieństw 1X2.
+    Prawdopodobieństwo HT zakłada większą szansę remisu w połowie."""
+    # Korekta na połowę (krótszy czas -> więcej remisów)
+    ht_home = p_home * 0.55
+    ht_away = p_away * 0.55
+    ht_draw = max(0.05, 1 - ht_home - ht_away)
+
+    ft = {"1": p_home, "X": p_draw, "2": p_away}
+    ht = {"1": ht_home, "X": ht_draw, "2": ht_away}
+
+    MARGIN = 0.92
+    out = {}
+    for h_key in ["1", "X", "2"]:
+        for f_key in ["1", "X", "2"]:
+            # przybliżenie: zakładamy niezależność HT i FT (lekko zaniżone dla nierealistycznych par jak 2/1)
+            p = ht[h_key] * ft[f_key]
+            # bonus probabilistyczny dla "konsystentnych" wyników (1/1, X/X, 2/2)
+            if h_key == f_key:
+                p *= 1.6
+            p = max(0.005, min(0.50, p))
+            odd = round(max(1.1, min(500.0, MARGIN / p)), 2)
+            out[f"{h_key}/{f_key}"] = odd
+    return out
+
+
+def _generate_minute_by_minute(home_team: str, away_team: str,
                                home_strength: float) -> list:
     """Generuje dane minuta po minucie"""
     minutes = []
-    
+
     home_score = 0
     away_score = 0
     home_shots = 0
@@ -137,7 +181,9 @@ def _generate_minute_by_minute(home_team: str, away_team: str,
     away_fouls = 0
     home_yellows = 0
     away_yellows = 0
-    
+    home_offsides = 0
+    away_offsides = 0
+
     possession_home = 50.0
     
     commentaries = {
@@ -226,6 +272,17 @@ def _generate_minute_by_minute(home_team: str, away_team: str,
                         away_yellows += 1
                         events.append(MatchEvent(minute=minute, event_type=MatchEventType.YELLOW_CARD,
                                                team=away_team, description="Żółta kartka"))
+            # Spalony
+            elif rand < 0.36:
+                if random.random() < home_strength:
+                    home_offsides += 1
+                    events.append(MatchEvent(minute=minute, event_type=MatchEventType.OFFSIDE,
+                                           team=home_team, description="Spalony"))
+                else:
+                    away_offsides += 1
+                    events.append(MatchEvent(minute=minute, event_type=MatchEventType.OFFSIDE,
+                                           team=away_team, description="Spalony"))
+                commentary = "Sędzia liniowy podnosi chorągiewkę - spalony!"
             else:
                 commentary = random.choice(commentaries["boring"])
         
@@ -251,7 +308,9 @@ def _generate_minute_by_minute(home_team: str, away_team: str,
             home_yellow_cards=home_yellows,
             away_yellow_cards=away_yellows,
             home_red_cards=0,
-            away_red_cards=0
+            away_red_cards=0,
+            home_offsides=home_offsides,
+            away_offsides=away_offsides
         )
         minutes.append(minute_data)
     

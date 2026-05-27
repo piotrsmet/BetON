@@ -113,6 +113,7 @@ export const MatchList = ({ onMatchSelect }) => {
         courseId: courseId,
         type: type === '1' ? '1' : type === '2' ? '2' : 'X',
         ratio: ratio,
+        rodzaj: '1X2',
         matchName: `${match.nazwa_gospodarza} - ${match.nazwa_goscia}`,
         selectionName: type === '1' ? match.nazwa_gospodarza : type === '2' ? match.nazwa_goscia : 'Remis'
     });

@@ -85,7 +85,7 @@ export const getMatches = async (req, res) => {
                     under_id: cardsUnder?.id
                 } : null
             };
-            const matchData = { ...m, odds: oddsMap };
+            const matchData = { ...m, odds: oddsMap, all_odds: odds };
             delete matchData.kursy;
             return matchData;
         });

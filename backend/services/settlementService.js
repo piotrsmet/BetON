@@ -90,6 +90,17 @@ export const settleCoupons = async () => {
                     ? (stats.zolte_kartki_gospodarz ?? 0) + (stats.zolte_kartki_gosc ?? 0)
                         + (stats.czerwone_kartki_gospodarz ?? 0) + (stats.czerwone_kartki_gosc ?? 0)
                     : null;
+                const totalSot = stats ? (stats.strzaly_celne_gospodarz ?? 0) + (stats.strzaly_celne_gosc ?? 0) : null;
+                const totalOffsides = stats ? (stats.spalone_gospodarz ?? 0) + (stats.spalone_gosc ?? 0) : null;
+                const htHomeGoals = stats?.gole_gospodarz_ht ?? null;
+                const htAwayGoals = stats?.gole_gosc_ht ?? null;
+                let htOutcome = null;
+                if (htHomeGoals != null && htAwayGoals != null) {
+                    if (htHomeGoals > htAwayGoals) htOutcome = '1';
+                    else if (htHomeGoals < htAwayGoals) htOutcome = '2';
+                    else htOutcome = 'X';
+                }
+                const ftOutcome = isHomeWin ? '1' : isAwayWin ? '2' : 'X';
 
                 for (const odd of match.kursy) {
                     let outcome = null; // 'WIN' | 'LOSS' | 'VOID' | null (skip)
@@ -118,6 +129,22 @@ export const settleCoupons = async () => {
                         if (totalCards === line) outcome = 'VOID';
                         else if (odd.typ === 'OVER') outcome = totalCards > line ? 'WIN' : 'LOSS';
                         else if (odd.typ === 'UNDER') outcome = totalCards < line ? 'WIN' : 'LOSS';
+                    } else if (odd.rodzaj === 'OU_SOT') {
+                        if (totalSot === null) continue;
+                        const line = Number(odd.linia ?? 8.5);
+                        if (totalSot === line) outcome = 'VOID';
+                        else if (odd.typ === 'OVER') outcome = totalSot > line ? 'WIN' : 'LOSS';
+                        else if (odd.typ === 'UNDER') outcome = totalSot < line ? 'WIN' : 'LOSS';
+                    } else if (odd.rodzaj === 'OU_OFFSIDES') {
+                        if (totalOffsides === null) continue;
+                        const line = Number(odd.linia ?? 3.5);
+                        if (totalOffsides === line) outcome = 'VOID';
+                        else if (odd.typ === 'OVER') outcome = totalOffsides > line ? 'WIN' : 'LOSS';
+                        else if (odd.typ === 'UNDER') outcome = totalOffsides < line ? 'WIN' : 'LOSS';
+                    } else if (odd.rodzaj === 'HTFT') {
+                        if (!htOutcome) continue;
+                        const expected = `${htOutcome}/${ftOutcome}`;
+                        outcome = odd.typ === expected ? 'WIN' : 'LOSS';
                     }
 
                     if (outcome) {
