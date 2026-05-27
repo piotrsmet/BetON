@@ -49,6 +49,7 @@ model kursy {
   rodzaj        String          @db.VarChar(50)
   typ           String          @db.VarChar(50)
   opis          String?         @db.VarChar(150)
+  linia         Decimal?        @db.Decimal(5, 2)
   kurs          Decimal         @db.Decimal(6, 2)
   status        kursy_status?   @default(AKTYWNY)
   wynik         kursy_wynik?    @default(PENDING)

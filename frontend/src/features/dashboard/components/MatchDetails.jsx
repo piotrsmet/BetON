@@ -114,19 +114,59 @@ export const MatchDetails = ({ matchId, onBack }) => {
 
     }, [match]);
 
-    const handleBetClick = (type, courseId, ratio) => {
+    const handleBetClick = (type, courseId, ratio, selectionLabel) => {
         if (!ratio || !courseId || !match) return;
+        const fallback = type === '1' ? match.nazwa_gospodarza : type === '2' ? match.nazwa_goscia : 'Remis';
         addBet({
             matchId: match.id,
             courseId: courseId,
             type: type,
             ratio: ratio,
             matchName: `${match.nazwa_gospodarza} - ${match.nazwa_goscia}`,
-            selectionName: type === '1' ? match.nazwa_gospodarza : type === '2' ? match.nazwa_goscia : 'Remis'
+            selectionName: selectionLabel || fallback
         });
     };
 
     const isSelected = (courseId) => bets.some(b => b.courseId === courseId);
+
+    // Grupowanie kursów wg rodzaju rynku
+    const oddsByRodzaj = (match?.odds || []).reduce((acc, o) => {
+        const key = o.rodzaj || '1X2';
+        (acc[key] = acc[key] || []).push(o);
+        return acc;
+    }, {});
+
+    const findOdd = (rodzaj, typ) => (oddsByRodzaj[rodzaj] || []).find(o => o.typ === typ);
+
+    const renderTwoWayMarket = (title, rodzaj, leftTyp, rightTyp, leftLabel, rightLabel) => {
+        const left = findOdd(rodzaj, leftTyp);
+        const right = findOdd(rodzaj, rightTyp);
+        if (!left && !right) return null;
+        const line = left?.linia ?? right?.linia;
+        const headerLine = line != null ? ` (${Number(line)})` : '';
+        return (
+            <div className="bg-dark/30 rounded-2xl p-6 border border-white/5">
+                <h4 className="text-white font-bold mb-4">{title}{headerLine}</h4>
+                <div className="grid grid-cols-2 gap-2">
+                    {[{odd: left, label: leftLabel, typ: leftTyp}, {odd: right, label: rightLabel, typ: rightTyp}].map(({odd, label, typ}) => (
+                        <button
+                            key={typ}
+                            disabled={!odd}
+                            onClick={() => handleBetClick(typ, odd?.id, odd?.kurs, `${title}: ${label}`)}
+                            className={`p-3 rounded-xl border flex flex-col items-center transition-all ${
+                                odd && isSelected(odd.id)
+                                ? 'bg-accent text-dark border-accent'
+                                : 'bg-white/5 border-white/10 hover:bg-white/10 text-white'
+                            } ${!odd ? 'opacity-40 cursor-not-allowed' : ''}`}
+                        >
+                            <span className="text-xs opacity-60 font-bold mb-1">{label}</span>
+                            <span className="font-bold text-lg">{odd?.kurs ?? '-'}</span>
+                        </button>
+                    ))}
+                </div>
+            </div>
+        );
+    };
 
 
     if (loading) return <div className="p-10 text-center text-white">Ładowanie meczu...</div>;
@@ -165,17 +205,17 @@ export const MatchDetails = ({ matchId, onBack }) => {
                 
                 {/* Stats Column */}
                 <div className="lg:col-span-1 space-y-6">
-                     {/* Odds */}
+                     {/* Odds 1X2 */}
                     <div className="bg-dark/30 rounded-2xl p-6 border border-white/5">
                         <h4 className="text-white font-bold mb-4">Kursy 1X2</h4>
                          <div className="grid grid-cols-3 gap-2">
-                            {match.odds && match.odds.map(odd => (
-                                <button 
+                            {(oddsByRodzaj['1X2'] || []).map(odd => (
+                                <button
                                     key={odd.id}
                                     onClick={() => handleBetClick(odd.typ, odd.id, odd.kurs)}
                                     className={`p-3 rounded-xl border flex flex-col items-center transition-all ${
-                                        isSelected(odd.id) 
-                                        ? 'bg-accent text-dark border-accent' 
+                                        isSelected(odd.id)
+                                        ? 'bg-accent text-dark border-accent'
                                         : 'bg-white/5 border-white/10 hover:bg-white/10 text-white'
                                     }`}
                                 >
@@ -185,6 +225,18 @@ export const MatchDetails = ({ matchId, onBack }) => {
                             ))}
                         </div>
                     </div>
+
+                    {/* Liczba bramek (Over/Under) */}
+                    {renderTwoWayMarket('Liczba bramek', 'OU_GOALS', 'OVER', 'UNDER', 'Powyżej', 'Poniżej')}
+
+                    {/* BTTS - obie strzelą */}
+                    {renderTwoWayMarket('Obie strzelą (BTTS)', 'BTTS', 'YES', 'NO', 'TAK', 'NIE')}
+
+                    {/* Rzuty rożne (Over/Under) */}
+                    {renderTwoWayMarket('Rzuty rożne', 'OU_CORNERS', 'OVER', 'UNDER', 'Powyżej', 'Poniżej')}
+
+                    {/* Kartki (Over/Under) */}
+                    {renderTwoWayMarket('Kartki', 'OU_CARDS', 'OVER', 'UNDER', 'Powyżej', 'Poniżej')}
 
                     {/* Live Stats */}
                     {currentStats && (

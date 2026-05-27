@@ -71,39 +71,59 @@ export const settleCoupons = async () => {
                     some: { wynik: 'PENDING' }
                 }
             },
-            include: { kursy: true }
+            include: { kursy: true, statystyki_meczu: true }
         });
 
         await prisma.$transaction(async (tx) => {
             for (const match of unresolvedMatches) {
-                const isHomeWin = match.wynik_gospodarz > match.wynik_gosc;
-                const isAwayWin = match.wynik_gosc > match.wynik_gospodarz;
-                const isDraw = match.wynik_gospodarz === match.wynik_gosc;
+                const homeGoals = match.wynik_gospodarz;
+                const awayGoals = match.wynik_gosc;
+                const isHomeWin = homeGoals > awayGoals;
+                const isAwayWin = awayGoals > homeGoals;
+                const isDraw = homeGoals === awayGoals;
+                const totalGoals = homeGoals + awayGoals;
+                const bothScored = homeGoals > 0 && awayGoals > 0;
+
+                const stats = match.statystyki_meczu?.[0] || null;
+                const totalCorners = stats ? (stats.rozne_gospodarz ?? 0) + (stats.rozne_gosc ?? 0) : null;
+                const totalCards = stats
+                    ? (stats.zolte_kartki_gospodarz ?? 0) + (stats.zolte_kartki_gosc ?? 0)
+                        + (stats.czerwone_kartki_gospodarz ?? 0) + (stats.czerwone_kartki_gosc ?? 0)
+                    : null;
 
                 for (const odd of match.kursy) {
-                    if (odd.typ === '1') {
+                    let outcome = null; // 'WIN' | 'LOSS' | 'VOID' | null (skip)
+
+                    if (odd.rodzaj === '1X2') {
+                        if (odd.typ === '1') outcome = isHomeWin ? 'WIN' : 'LOSS';
+                        else if (odd.typ === 'X') outcome = isDraw ? 'WIN' : 'LOSS';
+                        else if (odd.typ === '2') outcome = isAwayWin ? 'WIN' : 'LOSS';
+                    } else if (odd.rodzaj === 'OU_GOALS') {
+                        const line = Number(odd.linia ?? 2.5);
+                        if (totalGoals === line) outcome = 'VOID';
+                        else if (odd.typ === 'OVER') outcome = totalGoals > line ? 'WIN' : 'LOSS';
+                        else if (odd.typ === 'UNDER') outcome = totalGoals < line ? 'WIN' : 'LOSS';
+                    } else if (odd.rodzaj === 'BTTS') {
+                        if (odd.typ === 'YES') outcome = bothScored ? 'WIN' : 'LOSS';
+                        else if (odd.typ === 'NO') outcome = !bothScored ? 'WIN' : 'LOSS';
+                    } else if (odd.rodzaj === 'OU_CORNERS') {
+                        if (totalCorners === null) continue;
+                        const line = Number(odd.linia ?? 9.5);
+                        if (totalCorners === line) outcome = 'VOID';
+                        else if (odd.typ === 'OVER') outcome = totalCorners > line ? 'WIN' : 'LOSS';
+                        else if (odd.typ === 'UNDER') outcome = totalCorners < line ? 'WIN' : 'LOSS';
+                    } else if (odd.rodzaj === 'OU_CARDS') {
+                        if (totalCards === null) continue;
+                        const line = Number(odd.linia ?? 4.5);
+                        if (totalCards === line) outcome = 'VOID';
+                        else if (odd.typ === 'OVER') outcome = totalCards > line ? 'WIN' : 'LOSS';
+                        else if (odd.typ === 'UNDER') outcome = totalCards < line ? 'WIN' : 'LOSS';
+                    }
+
+                    if (outcome) {
                         await tx.kursy.update({
                             where: { id: odd.id },
-                            data: {
-                                status: 'ROZTRZYGNIETY',
-                                wynik: isHomeWin ? 'WIN' : 'LOSS'
-                            }
-                        });
-                    } else if (odd.typ === 'X') {
-                        await tx.kursy.update({
-                            where: { id: odd.id },
-                            data: {
-                                status: 'ROZTRZYGNIETY',
-                                wynik: isDraw ? 'WIN' : 'LOSS'
-                            }
-                        });
-                    } else if (odd.typ === '2') {
-                        await tx.kursy.update({
-                            where: { id: odd.id },
-                            data: {
-                                status: 'ROZTRZYGNIETY',
-                                wynik: isAwayWin ? 'WIN' : 'LOSS'
-                            }
+                            data: { status: 'ROZTRZYGNIETY', wynik: outcome }
                         });
                     }
                 }
@@ -127,6 +147,12 @@ export const settleCoupons = async () => {
                         where: { id: item.id },
                         data: { status: 'PRZEGRANY' }
                     });
+                } else if (item.kursy.wynik === 'VOID') {
+                    // Pozycja zwrócona - kurs traktowany jako 1.00 przy rozliczeniu
+                    await tx.kupon_pozycje.update({
+                        where: { id: item.id },
+                        data: { status: 'ZWROT' }
+                    });
                 }
             }
         });
@@ -141,30 +167,40 @@ export const settleCoupons = async () => {
                 const items = coupon.kupon_pozycje;
                 const anyPending = items.some(i => i.status === 'OCZEKUJACY');
                 const anyLost = items.some(i => i.status === 'PRZEGRANY');
-                
+
                 if (anyLost) {
                     await tx.kupony.update({
                         where: { id: coupon.id },
                         data: { status: 'PRZEGRANY' }
                     });
                 } else if (!anyPending) {
-                    const allWon = items.every(i => i.status === 'WYGRANY');
-                    if (allWon) {
+                    const allSettled = items.every(i => i.status === 'WYGRANY' || i.status === 'ZWROT');
+                    if (allSettled) {
+                        // Przelicz kurs z uwzględnieniem zwrotów (VOID liczone jako 1.0)
+                        const effectiveOdds = items.reduce((acc, i) => {
+                            if (i.status === 'WYGRANY') return acc * Number(i.kurs_w_momencie);
+                            return acc; // ZWROT -> mnożnik 1.0
+                        }, 1);
+                        const payout = Number((Number(coupon.stawka) * effectiveOdds).toFixed(2));
+
                         await tx.kupony.update({
                             where: { id: coupon.id },
-                            data: { status: 'WYGRANY' }
+                            data: {
+                                status: 'WYGRANY',
+                                potencjalna_wygrana: payout
+                            }
                         });
-                        
+
                         await tx.uzytkownicy.update({
                             where: { id: coupon.uzytkownik_id },
-                            data: { saldo: { increment: coupon.potencjalna_wygrana } }
+                            data: { saldo: { increment: payout } }
                         });
-                        
+
                         await tx.transakcje.create({
                             data: {
                                 uzytkownik_id: coupon.uzytkownik_id,
                                 typ: 'WYGRANA',
-                                kwota: coupon.potencjalna_wygrana,
+                                kwota: payout,
                                 opis: `Wygrana z kuponu #${coupon.id}`
                             }
                         });

@@ -86,6 +86,13 @@ def generate_match_simulation(
         under_2_5=round(random.uniform(1.6, 2.1), 2),
         btts_yes=round(random.uniform(1.7, 2.0), 2),
         btts_no=round(random.uniform(1.8, 2.1), 2),
+        goals_line=2.5,
+        corners_line=9.5,
+        corners_over=round(random.uniform(1.75, 2.1), 2),
+        corners_under=round(random.uniform(1.7, 2.05), 2),
+        cards_line=4.5,
+        cards_over=round(random.uniform(1.75, 2.1), 2),
+        cards_under=round(random.uniform(1.7, 2.05), 2),
         asian_handicap_line=round(random.uniform(-1.5, 1.5) * 2) / 2,
         asian_handicap_home=1.9,
         asian_handicap_away=1.9

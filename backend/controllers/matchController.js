@@ -17,23 +17,61 @@ export const getMatches = async (req, res) => {
             where,
             orderBy: { data_spotkania: 'asc' },
             include: {
-                kursy: {
-                    where: { rodzaj: '1X2' }
-                }
+                kursy: true
             }
         });
-        
+
         const matchesWithOdds = matches.map(m => {
             const odds = m.kursy;
+            const find = (rodzaj, typ) => odds.find(o => o.rodzaj === rodzaj && o.typ === typ);
+            const h = find('1X2', '1');
+            const d = find('1X2', 'X');
+            const a = find('1X2', '2');
+            const ouOver = find('OU_GOALS', 'OVER');
+            const ouUnder = find('OU_GOALS', 'UNDER');
+            const bttsY = find('BTTS', 'YES');
+            const bttsN = find('BTTS', 'NO');
+            const cornersOver = find('OU_CORNERS', 'OVER');
+            const cornersUnder = find('OU_CORNERS', 'UNDER');
+            const cardsOver = find('OU_CARDS', 'OVER');
+            const cardsUnder = find('OU_CARDS', 'UNDER');
+
             const oddsMap = {
-                home: odds.find(o => o.typ === '1')?.kurs || null,
-                draw: odds.find(o => o.typ === 'X')?.kurs || null,
-                away: odds.find(o => o.typ === '2')?.kurs || null,
+                home: h?.kurs || null,
+                draw: d?.kurs || null,
+                away: a?.kurs || null,
                 ids: {
-                    home: odds.find(o => o.typ === '1')?.id,
-                    draw: odds.find(o => o.typ === 'X')?.id,
-                    away: odds.find(o => o.typ === '2')?.id
-                }
+                    home: h?.id,
+                    draw: d?.id,
+                    away: a?.id
+                },
+                ou_goals: ouOver ? {
+                    line: Number(ouOver.linia ?? 2.5),
+                    over: ouOver.kurs,
+                    under: ouUnder?.kurs || null,
+                    over_id: ouOver.id,
+                    under_id: ouUnder?.id
+                } : null,
+                btts: bttsY ? {
+                    yes: bttsY.kurs,
+                    no: bttsN?.kurs || null,
+                    yes_id: bttsY.id,
+                    no_id: bttsN?.id
+                } : null,
+                ou_corners: cornersOver ? {
+                    line: Number(cornersOver.linia ?? 9.5),
+                    over: cornersOver.kurs,
+                    under: cornersUnder?.kurs || null,
+                    over_id: cornersOver.id,
+                    under_id: cornersUnder?.id
+                } : null,
+                ou_cards: cardsOver ? {
+                    line: Number(cardsOver.linia ?? 4.5),
+                    over: cardsOver.kurs,
+                    under: cardsUnder?.kurs || null,
+                    over_id: cardsOver.id,
+                    under_id: cardsUnder?.id
+                } : null
             };
             const matchData = { ...m, odds: oddsMap };
             delete matchData.kursy;

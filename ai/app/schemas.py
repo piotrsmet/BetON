@@ -90,7 +90,20 @@ class PreMatchOdds(BaseModel):
     under_2_5: float = Field(..., gt=1.0, le=50.0)
     btts_yes: float = Field(..., gt=1.0, le=20.0)
     btts_no: float = Field(..., gt=1.0, le=20.0)
-    
+
+    # Liczba bramek - dodatkowe linie
+    goals_line: float = Field(2.5, ge=0.5, le=6.5, description="Linia Over/Under bramek")
+
+    # Rzuty rożne (corners)
+    corners_line: float = Field(9.5, ge=2.5, le=20.5, description="Linia Over/Under rzutów rożnych")
+    corners_over: float = Field(1.9, gt=1.0, le=20.0)
+    corners_under: float = Field(1.9, gt=1.0, le=20.0)
+
+    # Kartki (yellow + red counted as 1 each)
+    cards_line: float = Field(4.5, ge=0.5, le=15.5, description="Linia Over/Under kartek")
+    cards_over: float = Field(1.9, gt=1.0, le=20.0)
+    cards_under: float = Field(1.9, gt=1.0, le=20.0)
+
     # Asian Handicap
     asian_handicap_line: float = Field(0.0, ge=-5.0, le=5.0)
     asian_handicap_home: float = Field(1.9, gt=1.0, le=10.0)

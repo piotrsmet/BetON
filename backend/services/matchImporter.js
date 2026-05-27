@@ -205,13 +205,30 @@ export const importDailyMatches = async (numMatches = 5) => {
                 
                 if (existingOddsCount === 0) {
                     const preMatchOdds = matchData.pre_match_odds;
-                    
+
                     if (preMatchOdds) {
+                        const goalsLine = preMatchOdds.goals_line ?? 2.5;
+                        const cornersLine = preMatchOdds.corners_line ?? 9.5;
+                        const cardsLine = preMatchOdds.cards_line ?? 4.5;
+
                         await prisma.kursy.createMany({
                             data: [
+                                // 1X2
                                 { mecz_id: matchId, rodzaj: '1X2', typ: '1', opis: homeName, kurs: preMatchOdds.home_win, status: 'AKTYWNY' },
                                 { mecz_id: matchId, rodzaj: '1X2', typ: 'X', opis: 'Remis', kurs: preMatchOdds.draw, status: 'AKTYWNY' },
-                                { mecz_id: matchId, rodzaj: '1X2', typ: '2', opis: awayName, kurs: preMatchOdds.away_win, status: 'AKTYWNY' }
+                                { mecz_id: matchId, rodzaj: '1X2', typ: '2', opis: awayName, kurs: preMatchOdds.away_win, status: 'AKTYWNY' },
+                                // Over/Under bramek
+                                { mecz_id: matchId, rodzaj: 'OU_GOALS', typ: 'OVER', linia: goalsLine, opis: `Powyżej ${goalsLine} bramek`, kurs: preMatchOdds.over_2_5, status: 'AKTYWNY' },
+                                { mecz_id: matchId, rodzaj: 'OU_GOALS', typ: 'UNDER', linia: goalsLine, opis: `Poniżej ${goalsLine} bramek`, kurs: preMatchOdds.under_2_5, status: 'AKTYWNY' },
+                                // BTTS
+                                { mecz_id: matchId, rodzaj: 'BTTS', typ: 'YES', opis: 'Obie drużyny strzelą - TAK', kurs: preMatchOdds.btts_yes, status: 'AKTYWNY' },
+                                { mecz_id: matchId, rodzaj: 'BTTS', typ: 'NO', opis: 'Obie drużyny strzelą - NIE', kurs: preMatchOdds.btts_no, status: 'AKTYWNY' },
+                                // Rzuty rożne
+                                { mecz_id: matchId, rodzaj: 'OU_CORNERS', typ: 'OVER', linia: cornersLine, opis: `Powyżej ${cornersLine} rzutów rożnych`, kurs: preMatchOdds.corners_over ?? 1.9, status: 'AKTYWNY' },
+                                { mecz_id: matchId, rodzaj: 'OU_CORNERS', typ: 'UNDER', linia: cornersLine, opis: `Poniżej ${cornersLine} rzutów rożnych`, kurs: preMatchOdds.corners_under ?? 1.9, status: 'AKTYWNY' },
+                                // Kartki
+                                { mecz_id: matchId, rodzaj: 'OU_CARDS', typ: 'OVER', linia: cardsLine, opis: `Powyżej ${cardsLine} kartek`, kurs: preMatchOdds.cards_over ?? 1.9, status: 'AKTYWNY' },
+                                { mecz_id: matchId, rodzaj: 'OU_CARDS', typ: 'UNDER', linia: cardsLine, opis: `Poniżej ${cardsLine} kartek`, kurs: preMatchOdds.cards_under ?? 1.9, status: 'AKTYWNY' }
                             ]
                         });
                     } else {
