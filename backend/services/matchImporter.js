@@ -2,7 +2,19 @@ import axios from 'axios';
 import prisma from '../prisma.js';
 
 // URL do nowego API AI (FastAPI)
-const AI_API_URL = 'http://localhost:8000/generate/batch';
+const AI_BASE = 'http://localhost:8000';
+const AI_SINGLE_URL = `${AI_BASE}/generate/match`;
+
+// Status pojedynczego cyklu importu - dostępny przez /api/import/status
+export const importStatus = {
+    totalRequested: 0,
+    completed: 0,
+    inProgress: false,
+    startedAt: null,
+    finishedAt: null,
+    lastError: null,
+    pages: [] // [{ index, home_team, away_team, status: 'pending'|'ok'|'error', matchId? }]
+};
 
 // Lista dostępnych drużyn Premier League
 const TEAMS = [
@@ -12,12 +24,11 @@ const TEAMS = [
     'Nottingham Forest', 'Sheffield United', 'Tottenham', 'West Ham', 'Wolves'
 ];
 
-// Funkcja losowej pary meczów
 const generateRandomMatchPairs = (numMatches = 5) => {
     const shuffled = [...TEAMS].sort(() => Math.random() - 0.5);
     const pairs = [];
     const today = new Date().toISOString().split('T')[0];
-    
+
     for (let i = 0; i < Math.min(numMatches * 2, shuffled.length); i += 2) {
         pairs.push({
             home_team: shuffled[i],
@@ -32,7 +43,6 @@ const generateRandomMatchPairs = (numMatches = 5) => {
 export const clearMatchData = async () => {
     console.log('Czyszczenie danych meczowych...');
     try {
-        // Używamy raw SQL dla TRUNCATE z wyłączeniem FK checks
         await prisma.$executeRawUnsafe('SET FOREIGN_KEY_CHECKS = 0');
         await prisma.$executeRawUnsafe('TRUNCATE TABLE przebieg_meczu');
         await prisma.$executeRawUnsafe('TRUNCATE TABLE statystyki_meczu');
@@ -46,221 +56,208 @@ export const clearMatchData = async () => {
             await prisma.$executeRawUnsafe('SET FOREIGN_KEY_CHECKS = 1');
         } catch (_) {}
     }
-}
+};
 
-export const importDailyMatches = async (numMatches = 5) => {
-    console.log('Rozpoczynanie importu meczów z nowego API AI...');
-    try {
-        // 1. Przygotuj pary meczowe
-        const matchPairs = generateRandomMatchPairs(numMatches);
-        console.log(`Generowanie ${matchPairs.length} meczów...`);
-        
-        // 2. Wywołaj API /generate/batch
-        const response = await axios.post(AI_API_URL, { 
-            matches: matchPairs 
+// Generuje pojedynczy mecz w AI i zapisuje do DB. Zwraca id meczu.
+const generateAndPersist = async (pair, scheduledDate) => {
+    const response = await axios.post(AI_SINGLE_URL, pair, { timeout: 60000 });
+    const apiResponse = response.data;
+    if (apiResponse.status !== 'ok') {
+        throw new Error(apiResponse.error || apiResponse.message || 'AI error');
+    }
+    const matchData = apiResponse.data;
+    return await persistMatchToDb(matchData, scheduledDate);
+};
+
+const persistMatchToDb = async (matchData, scheduledDate) => {
+    const homeName = matchData.home_team;
+    const awayName = matchData.away_team;
+    const matchDate = scheduledDate;
+    const status = 'PLANOWANY';
+    const league = matchData.league || 'E0';
+    const scoreHome = matchData.final_score_home ?? null;
+    const scoreAway = matchData.final_score_away ?? null;
+
+    const dateStr = matchDate.toISOString().split('T')[0];
+    const startOfDay = new Date(dateStr);
+    const endOfDay = new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000);
+
+    const existing = await prisma.mecze.findFirst({
+        where: {
+            nazwa_gospodarza: homeName,
+            nazwa_goscia: awayName,
+            data_spotkania: { gte: startOfDay, lt: endOfDay }
+        }
+    });
+
+    let matchId;
+    if (existing) {
+        matchId = existing.id;
+        await prisma.mecze.update({
+            where: { id: matchId },
+            data: { wynik_gospodarz: scoreHome, wynik_gosc: scoreAway, status, data_spotkania: matchDate }
         });
-        
-        const apiResponse = response.data;
-        
-        // Nowe API zwraca: { status: "ok", data: { matches: [...], count: N } }
-        if (apiResponse.status !== 'ok') {
-            console.error('API zwróciło błąd:', apiResponse.error || apiResponse.message);
-            return;
-        }
-        
-        const matches = apiResponse.data?.matches || [];
-        
-        if (matches.length === 0) {
-            console.log('Brak meczów do zaimportowania.');
-            return;
-        }
-
-        for (const matchData of matches) {
-            try {
-                const homeName = matchData.home_team;
-                const awayName = matchData.away_team;
-                
-                // Data meczu: aktualna godzina + 2 minuty
-                const matchDate = new Date(Date.now() + 2 * 60 * 1000);
-                
-                // Status - nowe API symuluje od razu, więc ustawiamy PLANOWANY
-                const status = 'PLANOWANY';
-                const league = matchData.league || 'E0'; // E0 = Premier League
-                
-                // Wynik końcowy z API
-                const scoreHome = matchData.final_score_home ?? null;
-                const scoreAway = matchData.final_score_away ?? null;
-                
-                // Sprawdź czy mecz już istnieje
-                const dateStr = matchDate.toISOString().split('T')[0];
-                const startOfDay = new Date(dateStr);
-                const endOfDay = new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000);
-                
-                const existing = await prisma.mecze.findFirst({
-                    where: {
-                        nazwa_gospodarza: homeName,
-                        nazwa_goscia: awayName,
-                        data_spotkania: {
-                            gte: startOfDay,
-                            lt: endOfDay
-                        }
-                    }
-                });
-                
-                let matchId;
-                
-                if (existing) {
-                    matchId = existing.id;
-                    console.log(`Aktualizacja meczu: ${homeName} vs ${awayName} (ID: ${matchId})`);
-                    
-                    await prisma.mecze.update({
-                        where: { id: matchId },
-                        data: {
-                            wynik_gospodarz: scoreHome,
-                            wynik_gosc: scoreAway,
-                            status
-                        }
-                    });
-                } else {
-                    console.log(`Dodawanie nowego meczu: ${homeName} vs ${awayName}`);
-                    const newMatch = await prisma.mecze.create({
-                        data: {
-                            nazwa_gospodarza: homeName,
-                            nazwa_goscia: awayName,
-                            data_spotkania: matchDate,
-                            liga: league,
-                            status,
-                            wynik_gospodarz: scoreHome,
-                            wynik_gosc: scoreAway
-                        }
-                    });
-                    matchId = newMatch.id;
-                }
-
-                // Import Statystyk z ostatniej minuty
-                const minutes = matchData.minutes || [];
-                if (minutes.length > 0) {
-                    const lastMinute = minutes[minutes.length - 1];
-                    
-                    await prisma.statystyki_meczu.deleteMany({
-                        where: { mecz_id: matchId }
-                    });
-                    
-                    await prisma.statystyki_meczu.create({
-                        data: {
-                            mecz_id: matchId,
-                            gole_gospodarz: lastMinute.home_score ?? 0,
-                            gole_gosc: lastMinute.away_score ?? 0,
-                            rozne_gospodarz: lastMinute.home_corners ?? 0,
-                            rozne_gosc: lastMinute.away_corners ?? 0,
-                            faule_gospodarz: lastMinute.home_fouls ?? 0,
-                            faule_gosc: lastMinute.away_fouls ?? 0,
-                            zolte_kartki_gospodarz: lastMinute.home_yellow_cards ?? 0,
-                            zolte_kartki_gosc: lastMinute.away_yellow_cards ?? 0,
-                            czerwone_kartki_gospodarz: lastMinute.home_red_cards ?? 0,
-                            czerwone_kartki_gosc: lastMinute.away_red_cards ?? 0,
-                            strzaly_gospodarz: lastMinute.home_shots ?? 0,
-                            strzaly_gosc: lastMinute.away_shots ?? 0,
-                            strzaly_celne_gospodarz: lastMinute.home_shots_on_target ?? 0,
-                            strzaly_celne_gosc: lastMinute.away_shots_on_target ?? 0
-                        }
-                    });
-                }
-
-                // Import Przebiegu (Timeline) - minuta po minucie
-                if (minutes.length > 0) {
-                    await prisma.przebieg_meczu.deleteMany({
-                        where: { mecz_id: matchId }
-                    });
-
-                    await prisma.przebieg_meczu.createMany({
-                        data: minutes.map(minuteData => ({
-                            mecz_id: matchId,
-                            minuta: minuteData.minute,
-                            wynik: `${minuteData.home_score}:${minuteData.away_score}`,
-                            posiadanie: minuteData.home_possession > 50 ? 'home' : 'away',
-                            komentarz: minuteData.commentary || '',
-                            rozne_gospodarz: minuteData.home_corners ?? 0,
-                            rozne_gosc: minuteData.away_corners ?? 0,
-                            faule_gospodarz: minuteData.home_fouls ?? 0,
-                            faule_gosc: minuteData.away_fouls ?? 0,
-                            strzaly_gospodarz: minuteData.home_shots ?? 0,
-                            strzaly_gosc: minuteData.away_shots ?? 0,
-                            strzaly_celne_gospodarz: minuteData.home_shots_on_target ?? 0,
-                            strzaly_celne_gosc: minuteData.away_shots_on_target ?? 0,
-                            zolte_kartki_gospodarz: minuteData.home_yellow_cards ?? 0,
-                            zolte_kartki_gosc: minuteData.away_yellow_cards ?? 0,
-                            czerwone_kartki_gospodarz: minuteData.home_red_cards ?? 0,
-                            czerwone_kartki_gosc: minuteData.away_red_cards ?? 0,
-                            posiadanie_gospodarz: minuteData.home_possession ?? 50,
-                            posiadanie_gosc: minuteData.away_possession ?? 50
-                        }))
-                    });
-                }
-                
-                // Import Kursów z pre_match_odds
-                const existingOddsCount = await prisma.kursy.count({
-                    where: { mecz_id: matchId }
-                });
-                
-                if (existingOddsCount === 0) {
-                    const preMatchOdds = matchData.pre_match_odds;
-
-                    if (preMatchOdds) {
-                        const goalsLine = preMatchOdds.goals_line ?? 2.5;
-                        const cornersLine = preMatchOdds.corners_line ?? 9.5;
-                        const cardsLine = preMatchOdds.cards_line ?? 4.5;
-
-                        await prisma.kursy.createMany({
-                            data: [
-                                // 1X2
-                                { mecz_id: matchId, rodzaj: '1X2', typ: '1', opis: homeName, kurs: preMatchOdds.home_win, status: 'AKTYWNY' },
-                                { mecz_id: matchId, rodzaj: '1X2', typ: 'X', opis: 'Remis', kurs: preMatchOdds.draw, status: 'AKTYWNY' },
-                                { mecz_id: matchId, rodzaj: '1X2', typ: '2', opis: awayName, kurs: preMatchOdds.away_win, status: 'AKTYWNY' },
-                                // Over/Under bramek
-                                { mecz_id: matchId, rodzaj: 'OU_GOALS', typ: 'OVER', linia: goalsLine, opis: `Powyżej ${goalsLine} bramek`, kurs: preMatchOdds.over_2_5, status: 'AKTYWNY' },
-                                { mecz_id: matchId, rodzaj: 'OU_GOALS', typ: 'UNDER', linia: goalsLine, opis: `Poniżej ${goalsLine} bramek`, kurs: preMatchOdds.under_2_5, status: 'AKTYWNY' },
-                                // BTTS
-                                { mecz_id: matchId, rodzaj: 'BTTS', typ: 'YES', opis: 'Obie drużyny strzelą - TAK', kurs: preMatchOdds.btts_yes, status: 'AKTYWNY' },
-                                { mecz_id: matchId, rodzaj: 'BTTS', typ: 'NO', opis: 'Obie drużyny strzelą - NIE', kurs: preMatchOdds.btts_no, status: 'AKTYWNY' },
-                                // Rzuty rożne
-                                { mecz_id: matchId, rodzaj: 'OU_CORNERS', typ: 'OVER', linia: cornersLine, opis: `Powyżej ${cornersLine} rzutów rożnych`, kurs: preMatchOdds.corners_over ?? 1.9, status: 'AKTYWNY' },
-                                { mecz_id: matchId, rodzaj: 'OU_CORNERS', typ: 'UNDER', linia: cornersLine, opis: `Poniżej ${cornersLine} rzutów rożnych`, kurs: preMatchOdds.corners_under ?? 1.9, status: 'AKTYWNY' },
-                                // Kartki
-                                { mecz_id: matchId, rodzaj: 'OU_CARDS', typ: 'OVER', linia: cardsLine, opis: `Powyżej ${cardsLine} kartek`, kurs: preMatchOdds.cards_over ?? 1.9, status: 'AKTYWNY' },
-                                { mecz_id: matchId, rodzaj: 'OU_CARDS', typ: 'UNDER', linia: cardsLine, opis: `Poniżej ${cardsLine} kartek`, kurs: preMatchOdds.cards_under ?? 1.9, status: 'AKTYWNY' }
-                            ]
-                        });
-                    } else {
-                        // Fallback: generuj losowe kursy jeśli brak pre_match_odds
-                        const k1 = parseFloat((Math.random() * 1.5 + 1.5).toFixed(2));
-                        const kx = parseFloat((Math.random() * 1.0 + 3.0).toFixed(2));
-                        const k2 = parseFloat((Math.random() * 2.0 + 1.8).toFixed(2));
-                        
-                        await prisma.kursy.createMany({
-                            data: [
-                                { mecz_id: matchId, rodzaj: '1X2', typ: '1', opis: homeName, kurs: k1, status: 'AKTYWNY' },
-                                { mecz_id: matchId, rodzaj: '1X2', typ: 'X', opis: 'Remis', kurs: kx, status: 'AKTYWNY' },
-                                { mecz_id: matchId, rodzaj: '1X2', typ: '2', opis: awayName, kurs: k2, status: 'AKTYWNY' }
-                            ]
-                        });
-                    }
-                }
-                
-                console.log(`Mecz ${homeName} vs ${awayName} zaimportowany (ID: ${matchId})`);
-            } catch (matchErr) {
-                console.error(`Błąd importu meczu ${matchData.home_team} vs ${matchData.away_team}:`, matchErr);
+    } else {
+        const newMatch = await prisma.mecze.create({
+            data: {
+                nazwa_gospodarza: homeName,
+                nazwa_goscia: awayName,
+                data_spotkania: matchDate,
+                liga: league,
+                status,
+                wynik_gospodarz: scoreHome,
+                wynik_gosc: scoreAway
             }
-        }
+        });
+        matchId = newMatch.id;
+    }
 
-        console.log(`Import zakończony sukcesem. Zaimportowano ${matches.length} meczów.`);
+    // Statystyki końcowe
+    const minutes = matchData.minutes || [];
+    if (minutes.length > 0) {
+        const last = minutes[minutes.length - 1];
+        await prisma.statystyki_meczu.deleteMany({ where: { mecz_id: matchId } });
+        await prisma.statystyki_meczu.create({
+            data: {
+                mecz_id: matchId,
+                gole_gospodarz: last.home_score ?? 0,
+                gole_gosc: last.away_score ?? 0,
+                rozne_gospodarz: last.home_corners ?? 0,
+                rozne_gosc: last.away_corners ?? 0,
+                faule_gospodarz: last.home_fouls ?? 0,
+                faule_gosc: last.away_fouls ?? 0,
+                zolte_kartki_gospodarz: last.home_yellow_cards ?? 0,
+                zolte_kartki_gosc: last.away_yellow_cards ?? 0,
+                czerwone_kartki_gospodarz: last.home_red_cards ?? 0,
+                czerwone_kartki_gosc: last.away_red_cards ?? 0,
+                strzaly_gospodarz: last.home_shots ?? 0,
+                strzaly_gosc: last.away_shots ?? 0,
+                strzaly_celne_gospodarz: last.home_shots_on_target ?? 0,
+                strzaly_celne_gosc: last.away_shots_on_target ?? 0
+            }
+        });
 
-    } catch (err) {
-        if (err.response) {
-            console.error(`Błąd API AI: ${err.response.status} ${err.response.statusText}`);
-            console.error(err.response.data);
-        } else {
-            console.error('Główny błąd serwisu importu:', err.message);
+        // Przebieg
+        await prisma.przebieg_meczu.deleteMany({ where: { mecz_id: matchId } });
+        await prisma.przebieg_meczu.createMany({
+            data: minutes.map(m => ({
+                mecz_id: matchId,
+                minuta: m.minute,
+                wynik: `${m.home_score}:${m.away_score}`,
+                posiadanie: m.home_possession > 50 ? 'home' : 'away',
+                komentarz: m.commentary || '',
+                rozne_gospodarz: m.home_corners ?? 0,
+                rozne_gosc: m.away_corners ?? 0,
+                faule_gospodarz: m.home_fouls ?? 0,
+                faule_gosc: m.away_fouls ?? 0,
+                strzaly_gospodarz: m.home_shots ?? 0,
+                strzaly_gosc: m.away_shots ?? 0,
+                strzaly_celne_gospodarz: m.home_shots_on_target ?? 0,
+                strzaly_celne_gosc: m.away_shots_on_target ?? 0,
+                zolte_kartki_gospodarz: m.home_yellow_cards ?? 0,
+                zolte_kartki_gosc: m.away_yellow_cards ?? 0,
+                czerwone_kartki_gospodarz: m.home_red_cards ?? 0,
+                czerwone_kartki_gosc: m.away_red_cards ?? 0,
+                posiadanie_gospodarz: m.home_possession ?? 50,
+                posiadanie_gosc: m.away_possession ?? 50
+            }))
+        });
+    }
+
+    // Kursy - tylko jeśli jeszcze nie istnieją
+    const existingOddsCount = await prisma.kursy.count({ where: { mecz_id: matchId } });
+    if (existingOddsCount === 0) {
+        const o = matchData.pre_match_odds;
+        if (o) {
+            const goalsLine = o.goals_line ?? 2.5;
+            const cornersLine = o.corners_line ?? 9.5;
+            const cardsLine = o.cards_line ?? 4.5;
+            await prisma.kursy.createMany({
+                data: [
+                    { mecz_id: matchId, rodzaj: '1X2', typ: '1', opis: homeName, kurs: o.home_win, status: 'AKTYWNY' },
+                    { mecz_id: matchId, rodzaj: '1X2', typ: 'X', opis: 'Remis', kurs: o.draw, status: 'AKTYWNY' },
+                    { mecz_id: matchId, rodzaj: '1X2', typ: '2', opis: awayName, kurs: o.away_win, status: 'AKTYWNY' },
+                    { mecz_id: matchId, rodzaj: 'OU_GOALS', typ: 'OVER', linia: goalsLine, opis: `Powyżej ${goalsLine} bramek`, kurs: o.over_2_5, status: 'AKTYWNY' },
+                    { mecz_id: matchId, rodzaj: 'OU_GOALS', typ: 'UNDER', linia: goalsLine, opis: `Poniżej ${goalsLine} bramek`, kurs: o.under_2_5, status: 'AKTYWNY' },
+                    { mecz_id: matchId, rodzaj: 'BTTS', typ: 'YES', opis: 'Obie drużyny strzelą - TAK', kurs: o.btts_yes, status: 'AKTYWNY' },
+                    { mecz_id: matchId, rodzaj: 'BTTS', typ: 'NO', opis: 'Obie drużyny strzelą - NIE', kurs: o.btts_no, status: 'AKTYWNY' },
+                    { mecz_id: matchId, rodzaj: 'OU_CORNERS', typ: 'OVER', linia: cornersLine, opis: `Powyżej ${cornersLine} rzutów rożnych`, kurs: o.corners_over ?? 1.9, status: 'AKTYWNY' },
+                    { mecz_id: matchId, rodzaj: 'OU_CORNERS', typ: 'UNDER', linia: cornersLine, opis: `Poniżej ${cornersLine} rzutów rożnych`, kurs: o.corners_under ?? 1.9, status: 'AKTYWNY' },
+                    { mecz_id: matchId, rodzaj: 'OU_CARDS', typ: 'OVER', linia: cardsLine, opis: `Powyżej ${cardsLine} kartek`, kurs: o.cards_over ?? 1.9, status: 'AKTYWNY' },
+                    { mecz_id: matchId, rodzaj: 'OU_CARDS', typ: 'UNDER', linia: cardsLine, opis: `Poniżej ${cardsLine} kartek`, kurs: o.cards_under ?? 1.9, status: 'AKTYWNY' }
+                ]
+            });
         }
     }
-}
+
+    return matchId;
+};
+
+/**
+ * Importuje mecze "stronicowo":
+ *  - 1. mecz generowany i zapisywany synchronicznie (czeka caller)
+ *  - kolejne mecze lecą w tle, sekwencyjnie, każdy zaplanowany 2 min dalej
+ *
+ * Frontend może odpytywać /api/import/status żeby pokazać progres.
+ */
+export const importDailyMatches = async (numMatches = 5) => {
+    if (importStatus.inProgress) {
+        console.log('Import już w toku, pomijam.');
+        return;
+    }
+
+    const matchPairs = generateRandomMatchPairs(numMatches);
+    importStatus.totalRequested = matchPairs.length;
+    importStatus.completed = 0;
+    importStatus.inProgress = true;
+    importStatus.startedAt = new Date().toISOString();
+    importStatus.finishedAt = null;
+    importStatus.lastError = null;
+    importStatus.pages = matchPairs.map((p, i) => ({
+        index: i + 1,
+        home_team: p.home_team,
+        away_team: p.away_team,
+        status: 'pending',
+        matchId: null
+    }));
+
+    console.log(`Import stronicowy: ${matchPairs.length} meczów. 1. natychmiast, reszta w tle.`);
+
+    // Mecz #1: start za 30 sekund (pozwala graczom obejrzeć kursy przed startem)
+    const baseTime = Date.now() + 30 * 1000;
+    const intervalMs = 2 * 60 * 1000; // każdy kolejny mecz +2 min
+
+    // Strona 1 (synchronicznie)
+    try {
+        const id = await generateAndPersist(matchPairs[0], new Date(baseTime));
+        importStatus.pages[0].status = 'ok';
+        importStatus.pages[0].matchId = id;
+        importStatus.completed = 1;
+        console.log(`[page 1/${matchPairs.length}] OK: ${matchPairs[0].home_team} vs ${matchPairs[0].away_team}`);
+    } catch (err) {
+        importStatus.pages[0].status = 'error';
+        importStatus.lastError = err.message;
+        console.error('[page 1] BŁĄD:', err.message);
+    }
+
+    // Reszta - w tle, sekwencyjnie
+    (async () => {
+        for (let i = 1; i < matchPairs.length; i++) {
+            try {
+                const scheduled = new Date(baseTime + i * intervalMs);
+                const id = await generateAndPersist(matchPairs[i], scheduled);
+                importStatus.pages[i].status = 'ok';
+                importStatus.pages[i].matchId = id;
+                console.log(`[page ${i + 1}/${matchPairs.length}] OK: ${matchPairs[i].home_team} vs ${matchPairs[i].away_team}`);
+            } catch (err) {
+                importStatus.pages[i].status = 'error';
+                importStatus.lastError = err.message;
+                console.error(`[page ${i + 1}] BŁĄD:`, err.message);
+            }
+            importStatus.completed = i + 1;
+        }
+        importStatus.inProgress = false;
+        importStatus.finishedAt = new Date().toISOString();
+        console.log(`Import stronicowy zakończony.`);
+    })();
+};

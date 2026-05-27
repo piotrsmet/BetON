@@ -2,6 +2,8 @@ import React, { useEffect, useState, useRef } from 'react';
 import { apiClient } from '../../../api/client';
 import { useBetting } from '../../../context/BettingContext';
 
+const isLocked = (odd) => odd?.status === 'ZABLOKOWANY';
+
 export const MatchDetails = ({ matchId, onBack }) => {
     const [match, setMatch] = useState(null);
     const [timeline, setTimeline] = useState([]);
@@ -27,7 +29,7 @@ export const MatchDetails = ({ matchId, onBack }) => {
 
         const interval = setInterval(async () => {
              fetchMatchDetails();
-        }, 10000);
+        }, 5000);
 
         return () => clearInterval(interval);
     }, [matchId]);
@@ -114,8 +116,9 @@ export const MatchDetails = ({ matchId, onBack }) => {
 
     }, [match]);
 
-    const handleBetClick = (type, courseId, ratio, selectionLabel) => {
+    const handleBetClick = (type, courseId, ratio, selectionLabel, locked) => {
         if (!ratio || !courseId || !match) return;
+        if (locked) return;
         const fallback = type === '1' ? match.nazwa_gospodarza : type === '2' ? match.nazwa_goscia : 'Remis';
         addBet({
             matchId: match.id,
@@ -128,6 +131,29 @@ export const MatchDetails = ({ matchId, onBack }) => {
     };
 
     const isSelected = (courseId) => bets.some(b => b.courseId === courseId);
+
+    // Animacja zmiany kursu - śledź poprzednie wartości
+    const prevOddsRef = useRef({});
+    const [oddsTrend, setOddsTrend] = useState({}); // { [oddId]: 'up' | 'down' }
+    useEffect(() => {
+        if (!match?.odds) return;
+        const trends = {};
+        match.odds.forEach(o => {
+            const prev = prevOddsRef.current[o.id];
+            const curr = Number(o.kurs);
+            if (prev != null && curr !== prev) {
+                trends[o.id] = curr > prev ? 'up' : 'down';
+            }
+            prevOddsRef.current[o.id] = curr;
+        });
+        if (Object.keys(trends).length > 0) {
+            setOddsTrend(prev => ({ ...prev, ...trends }));
+            const tid = setTimeout(() => setOddsTrend({}), 2500);
+            return () => clearTimeout(tid);
+        }
+    }, [match?.odds]);
+
+    const trendClass = (id) => oddsTrend[id] === 'up' ? 'text-emerald-400' : oddsTrend[id] === 'down' ? 'text-rose-400' : '';
 
     // Grupowanie kursów wg rodzaju rynku
     const oddsByRodzaj = (match?.odds || []).reduce((acc, o) => {
@@ -148,21 +174,28 @@ export const MatchDetails = ({ matchId, onBack }) => {
             <div className="bg-dark/30 rounded-2xl p-6 border border-white/5">
                 <h4 className="text-white font-bold mb-4">{title}{headerLine}</h4>
                 <div className="grid grid-cols-2 gap-2">
-                    {[{odd: left, label: leftLabel, typ: leftTyp}, {odd: right, label: rightLabel, typ: rightTyp}].map(({odd, label, typ}) => (
-                        <button
-                            key={typ}
-                            disabled={!odd}
-                            onClick={() => handleBetClick(typ, odd?.id, odd?.kurs, `${title}: ${label}`)}
-                            className={`p-3 rounded-xl border flex flex-col items-center transition-all ${
-                                odd && isSelected(odd.id)
-                                ? 'bg-accent text-dark border-accent'
-                                : 'bg-white/5 border-white/10 hover:bg-white/10 text-white'
-                            } ${!odd ? 'opacity-40 cursor-not-allowed' : ''}`}
-                        >
-                            <span className="text-xs opacity-60 font-bold mb-1">{label}</span>
-                            <span className="font-bold text-lg">{odd?.kurs ?? '-'}</span>
-                        </button>
-                    ))}
+                    {[{odd: left, label: leftLabel, typ: leftTyp}, {odd: right, label: rightLabel, typ: rightTyp}].map(({odd, label, typ}) => {
+                        const locked = isLocked(odd);
+                        const sel = odd && isSelected(odd.id);
+                        return (
+                            <button
+                                key={typ}
+                                disabled={!odd || locked}
+                                onClick={() => handleBetClick(typ, odd?.id, odd?.kurs, `${title}: ${label}`, locked)}
+                                className={`p-3 rounded-xl border flex flex-col items-center transition-all relative ${
+                                    sel
+                                    ? 'bg-accent text-dark border-accent'
+                                    : 'bg-white/5 border-white/10 hover:bg-white/10 text-white'
+                                } ${!odd ? 'opacity-40 cursor-not-allowed' : ''} ${locked ? 'opacity-60 cursor-not-allowed animate-pulse' : ''}`}
+                            >
+                                <span className="text-xs opacity-60 font-bold mb-1">{label}</span>
+                                <span className={`font-bold text-lg transition-colors duration-500 ${trendClass(odd?.id)}`}>{odd?.kurs ?? '-'}</span>
+                                {locked && (
+                                    <span className="absolute top-1 right-1 text-[10px] bg-dark/80 text-amber-300 px-1.5 py-0.5 rounded font-bold">🔒</span>
+                                )}
+                            </button>
+                        );
+                    })}
                 </div>
             </div>
         );
@@ -207,22 +240,33 @@ export const MatchDetails = ({ matchId, onBack }) => {
                 <div className="lg:col-span-1 space-y-6">
                      {/* Odds 1X2 */}
                     <div className="bg-dark/30 rounded-2xl p-6 border border-white/5">
-                        <h4 className="text-white font-bold mb-4">Kursy 1X2</h4>
+                        <h4 className="text-white font-bold mb-4 flex items-center justify-between">
+                            <span>Kursy 1X2</span>
+                            <span className="text-[10px] uppercase tracking-widest text-emerald-400 animate-pulse">● LIVE</span>
+                        </h4>
                          <div className="grid grid-cols-3 gap-2">
-                            {(oddsByRodzaj['1X2'] || []).map(odd => (
-                                <button
-                                    key={odd.id}
-                                    onClick={() => handleBetClick(odd.typ, odd.id, odd.kurs)}
-                                    className={`p-3 rounded-xl border flex flex-col items-center transition-all ${
-                                        isSelected(odd.id)
-                                        ? 'bg-accent text-dark border-accent'
-                                        : 'bg-white/5 border-white/10 hover:bg-white/10 text-white'
-                                    }`}
-                                >
-                                    <span className="text-xs opacity-60 font-bold mb-1">{odd.typ}</span>
-                                    <span className="font-bold text-lg">{odd.kurs}</span>
-                                </button>
-                            ))}
+                            {(oddsByRodzaj['1X2'] || []).map(odd => {
+                                const locked = isLocked(odd);
+                                const sel = isSelected(odd.id);
+                                return (
+                                    <button
+                                        key={odd.id}
+                                        disabled={locked}
+                                        onClick={() => handleBetClick(odd.typ, odd.id, odd.kurs, undefined, locked)}
+                                        className={`p-3 rounded-xl border flex flex-col items-center transition-all relative ${
+                                            sel
+                                            ? 'bg-accent text-dark border-accent'
+                                            : 'bg-white/5 border-white/10 hover:bg-white/10 text-white'
+                                        } ${locked ? 'opacity-60 cursor-not-allowed animate-pulse' : ''}`}
+                                    >
+                                        <span className="text-xs opacity-60 font-bold mb-1">{odd.typ}</span>
+                                        <span className={`font-bold text-lg transition-colors duration-500 ${trendClass(odd.id)}`}>{odd.kurs}</span>
+                                        {locked && (
+                                            <span className="absolute top-1 right-1 text-[10px] bg-dark/80 text-amber-300 px-1.5 py-0.5 rounded font-bold">🔒</span>
+                                        )}
+                                    </button>
+                                );
+                            })}
                         </div>
                     </div>
 

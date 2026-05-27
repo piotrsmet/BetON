@@ -44,17 +44,18 @@ enum kupon_pozycje_status {
 }
 
 model kursy {
-  id            Int             @id @default(autoincrement())
-  mecz_id       Int
-  rodzaj        String          @db.VarChar(50)
-  typ           String          @db.VarChar(50)
-  opis          String?         @db.VarChar(150)
-  linia         Decimal?        @db.Decimal(5, 2)
-  kurs          Decimal         @db.Decimal(6, 2)
-  status        kursy_status?   @default(AKTYWNY)
-  wynik         kursy_wynik?    @default(PENDING)
-  mecze         mecze           @relation(fields: [mecz_id], references: [id], onDelete: Cascade)
-  kupon_pozycje kupon_pozycje[]
+  id              Int             @id @default(autoincrement())
+  mecz_id         Int
+  rodzaj          String          @db.VarChar(50)
+  typ             String          @db.VarChar(50)
+  opis            String?         @db.VarChar(150)
+  linia           Decimal?        @db.Decimal(5, 2)
+  kurs            Decimal         @db.Decimal(6, 2)
+  status          kursy_status?   @default(AKTYWNY)
+  wynik           kursy_wynik?    @default(PENDING)
+  next_update_at  DateTime?
+  mecze           mecze           @relation(fields: [mecz_id], references: [id], onDelete: Cascade)
+  kupon_pozycje   kupon_pozycje[]
 }
 
 enum kursy_status {

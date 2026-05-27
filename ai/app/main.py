@@ -14,7 +14,7 @@ from fastapi.responses import JSONResponse
 
 from app.config import get_settings
 from app.schemas import (AskRequest, GenerateMatchRequest, GenerateBatchRequest,
-                         APIResponse, ErrorResponse)
+                         LiveOddsRequest, APIResponse, ErrorResponse)
 from app.guardrails import (detect_prompt_injection, validate_request, 
                             check_rate_limit, sanitize_output)
 from app.llm_service import get_llm_service
@@ -244,6 +244,104 @@ async def generate_batch_matches(request: GenerateBatchRequest):
         
     except Exception as e:
         metrics.record_request(False, time.time() - start_time)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/odds/live")
+async def compute_live_odds(request: LiveOddsRequest):
+    """
+    Przelicza kursy na żywo na podstawie aktualnego stanu meczu.
+    Zwraca słownik z kursami dla wszystkich rynków (1X2, OU_GOALS, BTTS, OU_CORNERS, OU_CARDS).
+    Logika: prosta probabilistyka — wpływa wynik, czas, liczba goli/rożnych/kartek.
+    """
+    import math, random
+    start_time = time.time()
+    try:
+        # Margines bukmacherski
+        MARGIN = 0.95
+        # 100% przy minucie 90, 0% przy 0 - im później tym mniej "potencjalnego" dzieje się dalej
+        progress = min(max(request.minute / 90.0, 0.0), 1.0)
+        remaining = max(1.0 - progress, 0.01)
+
+        # ---- 1X2 ----
+        diff = request.home_score - request.away_score
+        # Bazowe prawdopodobieństwo gospodarzy ~ 0.45 + bonus za prowadzenie, malejący ze stratą czasu
+        home_lead_bonus = 0.20 * diff * (0.4 + 0.6 * progress)
+        home_p = max(0.05, min(0.92, 0.45 + home_lead_bonus))
+        away_p_base = max(0.05, min(0.92, 0.35 - home_lead_bonus))
+        # Remis: bardziej prawdopodobny gdy diff=0 i mało czasu
+        draw_p = max(0.05, 0.25 * (1 - abs(diff) * 0.3) + 0.35 * progress * (1 if diff == 0 else 0.3))
+        # Normalizacja
+        s = home_p + away_p_base + draw_p
+        home_p /= s; draw_p /= s; away_p_base /= s
+
+        # ---- OU GOALS ----
+        total_goals = request.home_score + request.away_score
+        expected_total = total_goals + 2.5 * remaining  # zakładamy ~2.5 gola/mecz tempo
+        # Prosty model: P(over) zależy od (expected_total - line) / scale
+        from math import exp
+        z_goals = (expected_total - request.goals_line) / max(0.8, 1.2 * remaining + 0.2)
+        over_goals_p = 1 / (1 + exp(-z_goals))
+        under_goals_p = 1 - over_goals_p
+
+        # ---- BTTS ----
+        if request.home_score > 0 and request.away_score > 0:
+            btts_yes_p = 0.98
+        else:
+            # P(zarówno gospodarz jak i gość strzeli do końca meczu)
+            need_home = request.home_score == 0
+            need_away = request.away_score == 0
+            p_home_scores_rest = 1 - exp(-1.3 * remaining)
+            p_away_scores_rest = 1 - exp(-1.1 * remaining)
+            btts_yes_p = 1.0
+            if need_home:
+                btts_yes_p *= p_home_scores_rest
+            if need_away:
+                btts_yes_p *= p_away_scores_rest
+            btts_yes_p = max(0.03, min(0.97, btts_yes_p))
+        btts_no_p = 1 - btts_yes_p
+
+        # ---- CORNERS ----
+        total_corners = request.home_corners + request.away_corners
+        expected_corners = total_corners + 10 * remaining  # ~10 rożnych/mecz
+        z_corners = (expected_corners - request.corners_line) / max(1.5, 2.0 * remaining + 0.5)
+        over_corners_p = 1 / (1 + exp(-z_corners))
+        under_corners_p = 1 - over_corners_p
+
+        # ---- CARDS ----
+        total_cards = (request.home_yellow_cards + request.away_yellow_cards
+                       + request.home_red_cards + request.away_red_cards)
+        expected_cards = total_cards + 4.5 * remaining  # ~4.5 kartek/mecz
+        z_cards = (expected_cards - request.cards_line) / max(1.0, 1.5 * remaining + 0.3)
+        over_cards_p = 1 / (1 + exp(-z_cards))
+        under_cards_p = 1 - over_cards_p
+
+        # Zamiana P -> kurs (z marginesem). Mała losowość daje "żywy" wygląd kursów.
+        def to_odd(p):
+            p = max(0.02, min(0.98, p))
+            base = MARGIN / p
+            jitter = random.uniform(-0.04, 0.04)
+            return round(max(1.05, min(50.0, base + jitter)), 2)
+
+        result = {
+            "home_win": to_odd(home_p),
+            "draw": to_odd(draw_p),
+            "away_win": to_odd(away_p_base),
+            "over_goals": to_odd(over_goals_p),
+            "under_goals": to_odd(under_goals_p),
+            "btts_yes": to_odd(btts_yes_p),
+            "btts_no": to_odd(btts_no_p),
+            "over_corners": to_odd(over_corners_p),
+            "under_corners": to_odd(under_corners_p),
+            "over_cards": to_odd(over_cards_p),
+            "under_cards": to_odd(under_cards_p)
+        }
+
+        metrics.record_request(True, time.time() - start_time, "live_odds")
+        return APIResponse(status="ok", data=result)
+    except Exception as e:
+        metrics.record_request(False, time.time() - start_time)
+        logger.error("live_odds_error", error=str(e))
         raise HTTPException(status_code=500, detail=str(e))
 
 

@@ -1,4 +1,9 @@
 import prisma from '../prisma.js';
+import { importStatus } from '../services/matchImporter.js';
+
+export const getImportStatus = async (req, res) => {
+    res.json(importStatus);
+};
 
 export const getMatches = async (req, res) => {
     try {
@@ -36,6 +41,8 @@ export const getMatches = async (req, res) => {
             const cardsOver = find('OU_CARDS', 'OVER');
             const cardsUnder = find('OU_CARDS', 'UNDER');
 
+            const lockedStatus = (o) => o ? { kurs: o.kurs, status: o.status, locked: o.status === 'ZABLOKOWANY', next_update_at: o.next_update_at } : null;
+
             const oddsMap = {
                 home: h?.kurs || null,
                 draw: d?.kurs || null,
@@ -44,6 +51,11 @@ export const getMatches = async (req, res) => {
                     home: h?.id,
                     draw: d?.id,
                     away: a?.id
+                },
+                meta_1x2: {
+                    home: lockedStatus(h),
+                    draw: lockedStatus(d),
+                    away: lockedStatus(a)
                 },
                 ou_goals: ouOver ? {
                     line: Number(ouOver.linia ?? 2.5),

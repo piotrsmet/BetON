@@ -12,6 +12,7 @@ import walletRoutes from './routes/walletRoutes.js'
 import cron from 'node-cron'
 import { importDailyMatches, clearMatchData } from './services/matchImporter.js'
 import { settleCoupons, updateMatchStatuses } from './services/settlementService.js'
+import { tickLiveOdds } from './services/liveOddsService.js'
 
 const app = express()
 app.use(
@@ -62,6 +63,11 @@ app.listen(PORT, () => {
 			console.error('Błąd w cyklu rozliczeniowym:', error);
 		}
 	});
+
+	// Live odds tick - co 5 sekund (cron nie wspiera <minuty, używamy setInterval)
+	setInterval(() => {
+		tickLiveOdds().catch(err => console.error('tickLiveOdds error:', err));
+	}, 5000);
 
 
 	(async () => {

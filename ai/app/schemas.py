@@ -193,6 +193,24 @@ class GenerateBatchRequest(BaseModel):
     matches: List[GenerateMatchRequest] = Field(..., min_length=1, max_length=10)
 
 
+class LiveOddsRequest(BaseModel):
+    """Request do przeliczenia kursów na żywo na podstawie aktualnego stanu meczu"""
+    home_team: str = Field(..., max_length=50)
+    away_team: str = Field(..., max_length=50)
+    minute: int = Field(..., ge=0, le=120)
+    home_score: int = Field(..., ge=0, le=20)
+    away_score: int = Field(..., ge=0, le=20)
+    home_corners: int = Field(0, ge=0, le=40)
+    away_corners: int = Field(0, ge=0, le=40)
+    home_yellow_cards: int = Field(0, ge=0, le=22)
+    away_yellow_cards: int = Field(0, ge=0, le=22)
+    home_red_cards: int = Field(0, ge=0, le=10)
+    away_red_cards: int = Field(0, ge=0, le=10)
+    goals_line: float = Field(2.5, ge=0.5, le=10.5)
+    corners_line: float = Field(9.5, ge=2.5, le=25.5)
+    cards_line: float = Field(4.5, ge=0.5, le=20.5)
+
+
 class ToolCallRequest(BaseModel):
     """Request do wywołania narzędzia"""
     tool_name: ToolName

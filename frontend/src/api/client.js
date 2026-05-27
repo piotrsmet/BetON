@@ -93,6 +93,18 @@ export const apiClient = {
     return fetchWithAuth('/coupons');
   },
 
+  async getCashoutValue(couponId) {
+    return fetchWithAuth(`/coupons/${couponId}/cashout`);
+  },
+
+  async cashoutCoupon(couponId) {
+    return fetchWithAuth(`/coupons/${couponId}/cashout`, { method: 'POST' });
+  },
+
+  async getImportStatus() {
+    return fetchWithAuth('/import/status');
+  },
+
   async deposit(amount) {
     return fetchWithAuth('/wallet/deposit', {
       method: 'POST',

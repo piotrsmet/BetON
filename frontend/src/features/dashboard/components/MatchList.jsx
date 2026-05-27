@@ -7,7 +7,21 @@ export const MatchList = ({ onMatchSelect }) => {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [importInfo, setImportInfo] = useState(null);
   const { addBet, bets } = useBetting();
+
+  const fetchImportStatus = async () => {
+    try {
+      const info = await apiClient.getImportStatus();
+      setImportInfo(info);
+    } catch (_) { /* ignoruj - niezalogowany lub brak */ }
+  };
+
+  useEffect(() => {
+    fetchImportStatus();
+    const t = setInterval(fetchImportStatus, 3000);
+    return () => clearInterval(t);
+  }, []);
 
   const fetchMatches = async () => {
     try {
@@ -89,10 +103,11 @@ export const MatchList = ({ onMatchSelect }) => {
     return `${minutes}'`;
   };
 
-  const handleBetClick = (e, match, type, courseId, ratio) => {
+  const handleBetClick = (e, match, type, courseId, ratio, locked) => {
     e.stopPropagation();
     if (!ratio || !courseId) return;
-    
+    if (locked) return; // nie pozwól dodawać zablokowanego kursu
+
     addBet({
         matchId: match.id,
         courseId: courseId,
@@ -122,9 +137,28 @@ export const MatchList = ({ onMatchSelect }) => {
 
   return (
     <div className="py-2 md:py-4">
+      {/* Pasek postępu importu */}
+      {importInfo && importInfo.inProgress && importInfo.totalRequested > 0 && (
+        <div className="mb-4 bg-secondary/60 backdrop-blur-sm rounded-xl p-4 border border-accent/20">
+          <div className="flex justify-between text-sm text-white/80 mb-2">
+            <span>Generujemy mecze ({importInfo.completed}/{importInfo.totalRequested})…</span>
+            <span className="text-accent font-mono">{Math.round((importInfo.completed / importInfo.totalRequested) * 100)}%</span>
+          </div>
+          <div className="h-2 bg-dark/60 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-gradient-to-r from-accent to-emerald transition-all duration-500"
+              style={{ width: `${(importInfo.completed / importInfo.totalRequested) * 100}%` }}
+            />
+          </div>
+          <div className="text-xs text-white/40 mt-2">
+            Pierwszy mecz jest dostępny od razu — pozostałe pojawią się sekwencyjnie.
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-4 md:mb-6 gap-4">
         <h3 className="text-xl md:text-2xl text-white flex items-center gap-2 md:gap-3 font-bold">
-          <span className="text-2xl md:text-3xl"></span> 
+          <span className="text-2xl md:text-3xl"></span>
           <span>Top mecze</span>
         </h3>
         <input 
@@ -177,41 +211,30 @@ export const MatchList = ({ onMatchSelect }) => {
               </div>
 
               <div className="grid grid-cols-3 gap-2 md:gap-3">
-                <button 
-                    onClick={(e) => handleBetClick(e, match, '1', match.odds?.ids?.home, match.odds?.home)}
-                    className={`bg-primary/60 border rounded-xl p-2 md:p-4 flex flex-col items-center transition-all group ${
-                        isSelected(match.odds?.ids?.home) 
-                        ? 'bg-blue/40 border-blue shadow-lg shadow-blue/20 ring-1 ring-blue' 
-                        : 'border-blue/30 hover:bg-blue/20 hover:border-blue'
-                    } ${!match.odds?.home ? 'opacity-50 cursor-not-allowed' : ''}`}
-                >
-                  <span className={`text-xs mb-1 font-medium ${isSelected(match.odds?.ids?.home) ? 'text-white' : 'text-light/60 group-hover:text-blue'}`}>1</span>
-                  <span className={`font-bold text-lg md:text-2xl ${isSelected(match.odds?.ids?.home) ? 'text-white' : 'text-white group-hover:text-blue'}`}>{match.odds?.home || '-'}</span>
-                </button>
-                
-                <button 
-                    onClick={(e) => handleBetClick(e, match, 'X', match.odds?.ids?.draw, match.odds?.draw)}
-                    className={`bg-primary/60 border rounded-xl p-2 md:p-4 flex flex-col items-center transition-all group ${
-                        isSelected(match.odds?.ids?.draw) 
-                        ? 'bg-amber/40 border-amber shadow-lg shadow-amber/20 ring-1 ring-amber' 
-                        : 'border-amber/30 hover:bg-amber/20 hover:border-amber'
-                    } ${!match.odds?.draw ? 'opacity-50 cursor-not-allowed' : ''}`}
-                >
-                  <span className={`text-xs mb-1 font-medium ${isSelected(match.odds?.ids?.draw) ? 'text-white' : 'text-light/60 group-hover:text-amber'}`}>X</span>
-                  <span className={`font-bold text-lg md:text-2xl ${isSelected(match.odds?.ids?.draw) ? 'text-white' : 'text-white group-hover:text-amber'}`}>{match.odds?.draw || '-'}</span>
-                </button>
-                
-                <button 
-                    onClick={(e) => handleBetClick(e, match, '2', match.odds?.ids?.away, match.odds?.away)}
-                    className={`bg-primary/60 border rounded-xl p-2 md:p-4 flex flex-col items-center transition-all group ${
-                        isSelected(match.odds?.ids?.away) 
-                        ? 'bg-rose/40 border-rose shadow-lg shadow-rose/20 ring-1 ring-rose' 
-                        : 'border-rose/30 hover:bg-rose/20 hover:border-rose'
-                    } ${!match.odds?.away ? 'opacity-50 cursor-not-allowed' : ''}`}
-                >
-                  <span className={`text-xs mb-1 font-medium ${isSelected(match.odds?.ids?.away) ? 'text-white' : 'text-light/60 group-hover:text-rose'}`}>2</span>
-                  <span className={`font-bold text-lg md:text-2xl ${isSelected(match.odds?.ids?.away) ? 'text-white' : 'text-white group-hover:text-rose'}`}>{match.odds?.away || '-'}</span>
-                </button>
+                {[
+                  { key: 'home', typ: '1', sel: 'bg-blue/40 border-blue shadow-lg shadow-blue/20 ring-1 ring-blue', base: 'border-blue/30 hover:bg-blue/20 hover:border-blue', hover: 'group-hover:text-blue' },
+                  { key: 'draw', typ: 'X', sel: 'bg-amber/40 border-amber shadow-lg shadow-amber/20 ring-1 ring-amber', base: 'border-amber/30 hover:bg-amber/20 hover:border-amber', hover: 'group-hover:text-amber' },
+                  { key: 'away', typ: '2', sel: 'bg-rose/40 border-rose shadow-lg shadow-rose/20 ring-1 ring-rose', base: 'border-rose/30 hover:bg-rose/20 hover:border-rose', hover: 'group-hover:text-rose' }
+                ].map(({ key, typ, sel: selCls, base, hover }) => {
+                  const id = match.odds?.ids?.[key];
+                  const ratio = match.odds?.[key];
+                  const locked = match.odds?.meta_1x2?.[key]?.locked === true;
+                  const sel = isSelected(id);
+                  return (
+                    <button
+                      key={key}
+                      onClick={(e) => handleBetClick(e, match, typ, id, ratio, locked)}
+                      disabled={locked || !ratio}
+                      className={`bg-primary/60 border rounded-xl p-2 md:p-4 flex flex-col items-center transition-all group relative ${sel ? selCls : base} ${(!ratio || locked) ? 'opacity-50 cursor-not-allowed' : ''} ${locked ? 'animate-pulse' : ''}`}
+                    >
+                      <span className={`text-xs mb-1 font-medium ${sel ? 'text-white' : `text-light/60 ${hover}`}`}>{typ}</span>
+                      <span className={`font-bold text-lg md:text-2xl ${sel ? 'text-white' : `text-white ${hover}`}`}>{ratio || '-'}</span>
+                      {locked && (
+                        <span className="absolute top-1 right-1 text-[10px] bg-dark/80 text-amber-300 px-1.5 py-0.5 rounded font-bold">🔒</span>
+                      )}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           );
