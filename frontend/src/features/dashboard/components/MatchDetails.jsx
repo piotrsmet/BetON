@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { apiClient } from '../../../api/client';
 import { useBetting } from '../../../context/BettingContext';
 
-const isLocked = (odd) => odd?.status === 'ZABLOKOWANY';
+const isLockedStatus = (odd) => odd?.status === 'ZABLOKOWANY';
 
 export const MatchDetails = () => {
     const { id: matchId } = useParams();
@@ -176,7 +176,8 @@ export const MatchDetails = () => {
                 <h4 className="text-white font-bold mb-4 text-sm">{title}{headerLine}</h4>
                 <div className="grid grid-cols-2 gap-2">
                     {[{odd: left, label: leftLabel, typ: leftTyp}, {odd: right, label: rightLabel, typ: rightTyp}].map(({odd, label, typ}) => {
-                        const locked = isLocked(odd);
+                        const locked = isLockedStatus(odd) || match?.status === 'ZAKONCZONY';
+                        const isWon = match?.status === 'ZAKONCZONY' && odd?.wynik === 'WYGRANY';
                         const sel = odd && isSelected(odd.id);
                         return (
                             <button
@@ -184,15 +185,20 @@ export const MatchDetails = () => {
                                 disabled={!odd || locked}
                                 onClick={() => handleBetClick(typ, odd?.id, odd?.kurs, `${title}: ${label}`, locked, rodzaj)}
                                 className={`p-3 rounded-xl border flex flex-col items-center transition-all relative ${
-                                    sel
+                                    isWon
+                                    ? 'bg-win/20 text-win border-win shadow-[0_0_15px_rgba(34,197,94,0.2)]'
+                                    : sel
                                     ? 'bg-accent/20 text-accent border-accent'
                                     : 'bg-surface/30 border-surface/50 hover:bg-surface/60 text-white'
-                                } ${!odd ? 'opacity-40 cursor-not-allowed' : ''} ${locked ? 'opacity-60 cursor-not-allowed animate-pulse' : ''}`}
+                                } ${!odd ? 'opacity-40 cursor-not-allowed' : ''} ${locked && !isWon ? 'opacity-60 cursor-not-allowed' : ''} ${odd?.status === 'ZABLOKOWANY' ? 'animate-pulse' : ''}`}
                             >
                                 <span className="text-xs opacity-60 font-bold mb-1">{label}</span>
-                                <span className={`font-bold text-lg transition-colors duration-500 ${trendClass(odd?.id)}`}>{odd?.kurs ?? '-'}</span>
-                                {locked && (
+                                <span className={`font-bold text-lg transition-colors duration-500 ${!isWon && trendClass(odd?.id)}`}>{odd?.kurs ?? '-'}</span>
+                                {odd?.status === 'ZABLOKOWANY' && !isWon && (
                                     <span className="absolute top-1 right-1 text-[10px] bg-dark/80 text-amber px-1.5 py-0.5 rounded font-bold">🔒</span>
+                                )}
+                                {isWon && (
+                                    <span className="absolute -top-2 -right-2 text-sm bg-dark/80 rounded-full w-6 h-6 flex items-center justify-center border border-win text-win font-black">✓</span>
                                 )}
                             </button>
                         );
@@ -219,7 +225,8 @@ export const MatchDetails = () => {
                 <div className="grid grid-cols-3 gap-2">
                     {layout.flat().map(typ => {
                         const odd = map[typ];
-                        const locked = isLocked(odd);
+                        const locked = isLockedStatus(odd) || match?.status === 'ZAKONCZONY';
+                        const isWon = match?.status === 'ZAKONCZONY' && odd?.wynik === 'WYGRANY';
                         const sel = odd && isSelected(odd.id);
                         const [ht, ft] = typ.split('/');
                         return (
@@ -228,15 +235,20 @@ export const MatchDetails = () => {
                                 disabled={!odd || locked}
                                 onClick={() => handleBetClick(typ, odd?.id, odd?.kurs, `HT/FT ${typ}`, locked, 'HTFT')}
                                 className={`p-2 rounded-xl border flex flex-col items-center transition-all relative ${
-                                    sel
+                                    isWon
+                                    ? 'bg-win/20 text-win border-win shadow-[0_0_15px_rgba(34,197,94,0.2)]'
+                                    : sel
                                     ? 'bg-accent/20 text-accent border-accent'
                                     : 'bg-surface/30 border-surface/50 hover:bg-surface/60 text-white'
-                                } ${!odd ? 'opacity-40 cursor-not-allowed' : ''} ${locked ? 'opacity-60 cursor-not-allowed animate-pulse' : ''}`}
+                                } ${!odd ? 'opacity-40 cursor-not-allowed' : ''} ${locked && !isWon ? 'opacity-60 cursor-not-allowed' : ''} ${odd?.status === 'ZABLOKOWANY' ? 'animate-pulse' : ''}`}
                             >
                                 <span className="text-[10px] opacity-60 font-bold tracking-wide">{ht} → {ft}</span>
-                                <span className={`font-bold text-base transition-colors duration-500 ${trendClass(odd?.id)}`}>{odd?.kurs ?? '-'}</span>
-                                {locked && (
+                                <span className={`font-bold text-base transition-colors duration-500 ${!isWon && trendClass(odd?.id)}`}>{odd?.kurs ?? '-'}</span>
+                                {odd?.status === 'ZABLOKOWANY' && !isWon && (
                                     <span className="absolute top-1 right-1 text-[9px] bg-dark/80 text-amber px-1 rounded font-bold">🔒</span>
+                                )}
+                                {isWon && (
+                                    <span className="absolute -top-1.5 -right-1.5 text-[10px] bg-dark/80 rounded-full w-4 h-4 flex items-center justify-center border border-win text-win font-black">✓</span>
                                 )}
                             </button>
                         );
@@ -328,7 +340,8 @@ export const MatchDetails = () => {
                                 </h4>
                                 <div className="grid grid-cols-3 gap-2">
                                     {(oddsByRodzaj['1X2'] || []).map(odd => {
-                                        const locked = isLocked(odd);
+                                        const locked = isLockedStatus(odd) || match.status === 'ZAKONCZONY';
+                                        const isWon = match.status === 'ZAKONCZONY' && odd.wynik === 'WYGRANY';
                                         const sel = isSelected(odd.id);
                                         return (
                                             <button
@@ -336,15 +349,20 @@ export const MatchDetails = () => {
                                                 disabled={locked}
                                                 onClick={() => handleBetClick(odd.typ, odd.id, odd.kurs, undefined, locked, '1X2')}
                                                 className={`p-3 rounded-xl border flex flex-col items-center transition-all relative ${
-                                                    sel
+                                                    isWon
+                                                    ? 'bg-win/20 text-win border-win shadow-[0_0_15px_rgba(34,197,94,0.2)]'
+                                                    : sel
                                                     ? 'bg-accent/20 text-accent border-accent'
                                                     : 'bg-surface/30 border-surface/50 hover:bg-surface/60 text-white'
-                                                } ${locked ? 'opacity-60 cursor-not-allowed animate-pulse' : ''}`}
+                                                } ${locked && !isWon ? 'opacity-60 cursor-not-allowed' : ''} ${odd.status === 'ZABLOKOWANY' ? 'animate-pulse' : ''}`}
                                             >
                                                 <span className="text-xs opacity-60 font-bold mb-1">{odd.typ}</span>
-                                                <span className={`font-bold text-lg transition-colors duration-500 ${trendClass(odd.id)}`}>{odd.kurs}</span>
-                                                {locked && (
+                                                <span className={`font-bold text-lg transition-colors duration-500 ${!isWon && trendClass(odd.id)}`}>{odd.kurs}</span>
+                                                {odd.status === 'ZABLOKOWANY' && !isWon && (
                                                     <span className="absolute top-1 right-1 text-[10px] bg-dark/80 text-amber px-1.5 py-0.5 rounded font-bold">🔒</span>
+                                                )}
+                                                {isWon && (
+                                                    <span className="absolute -top-2 -right-2 text-sm bg-dark/80 rounded-full w-6 h-6 flex items-center justify-center border border-win text-win font-black">✓</span>
                                                 )}
                                             </button>
                                         );

@@ -1,0 +1,61 @@
+version: '3.8'
+
+services:
+  db:
+    image: mysql:8.0
+    container_name: beton-mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: BetON
+      MYSQL_USER: smecik
+      MYSQL_PASSWORD: zaq1@WSX
+    ports:
+      - "3307:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin" ,"ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+
+  ai:
+    build: 
+      context: ./ai
+      dockerfile: Dockerfile
+    container_name: beton-ai
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - LLM_PROVIDER=local
+      - LOCAL_LLM_ENABLED=true
+    volumes:
+      - ./ai/data:/app/data
+      - ./ai/DANE:/app/DANE:ro
+    healthcheck:
+      test: ["CMD", "python", "-c", "import httpx; httpx.get('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  webapp:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: beton-webapp
+    restart: unless-stopped
+    ports:
+      - "5001:5001"
+    environment:
+      - DATABASE_URL=mysql://smecik:zaq1@WSX@db:3306/BetON
+      - JWT_SECRET=3965b85c97c626ea8a56cf12e551fc9d258bfc1537f5c5e17d6aa9cc905b2109
+      - AI_BASE_URL=http://ai:8000
+    depends_on:
+      db:
+        condition: service_healthy
+      ai:
+        condition: service_healthy
+
+volumes:
+  db_data:

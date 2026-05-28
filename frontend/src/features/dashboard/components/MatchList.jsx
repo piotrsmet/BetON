@@ -123,17 +123,21 @@ export const MatchList = () => {
     return bets.some(b => b.courseId === courseId);
   };
 
+  const [activeTab, setActiveTab] = useState('ALL');
+
   if (loading && matches.length === 0) {
       return <div className="text-light text-center p-10">Ładowanie meczów...</div>;
   }
 
   const filteredMatches = matches.filter(match => {
     const searchLower = searchQuery.toLowerCase();
-    return (
+    const matchesSearch = (
       match.nazwa_gospodarza?.toLowerCase().includes(searchLower) ||
       match.nazwa_goscia?.toLowerCase().includes(searchLower) ||
       match.liga?.toLowerCase().includes(searchLower)
     );
+    const matchesTab = activeTab === 'ALL' || match.status === activeTab;
+    return matchesSearch && matchesTab;
   });
 
   return (
@@ -157,18 +161,44 @@ export const MatchList = () => {
         </div>
       )}
 
-      <div className="flex flex-col md:flex-row md:items-center justify-between mb-4 md:mb-6 gap-4">
-        <h3 className="text-xl md:text-2xl text-white flex items-center gap-2 md:gap-3 font-bold">
+      <div className="flex flex-col md:flex-row md:items-center justify-between mb-4 gap-4">
+        <h3 className="text-xl md:text-2xl text-white flex items-center gap-2 md:gap-3 font-bold whitespace-nowrap">
           <span className="text-2xl md:text-3xl">⚽</span>
-          <span>Top mecze</span>
+          <span>Wydarzenia</span>
         </h3>
-        <input 
-          type="text" 
-          placeholder="Szukaj drużyny lub ligi..." 
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="bg-secondary/80 text-white px-4 py-2 md:py-3 rounded-xl border border-surface focus:outline-none focus:border-accent w-full md:w-72 shadow-inner transition-all placeholder:text-muted"
-        />
+        
+        <div className="flex flex-col sm:flex-row gap-3 md:gap-4 w-full md:w-auto">
+          {/* Zakładki */}
+          <div className="flex bg-surface/40 p-1.5 rounded-2xl border border-surface/50 w-full sm:w-auto overflow-x-auto no-scrollbar">
+            {[
+              { id: 'ALL', label: 'Wszystkie' },
+              { id: 'TRWA', label: 'Na żywo', icon: '🔴' },
+              { id: 'PLANOWANY', label: 'Nadchodzące' },
+              { id: 'ZAKONCZONY', label: 'Zakończone' }
+            ].map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex-1 sm:flex-none px-4 py-2 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${
+                  activeTab === tab.id 
+                    ? 'bg-accent text-dark shadow-lg shadow-accent/20' 
+                    : 'text-muted hover:text-white hover:bg-surface/80'
+                }`}
+              >
+                {tab.icon && <span className={`mr-2 ${activeTab === tab.id ? 'animate-pulse' : ''}`}>{tab.icon}</span>}
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          <input 
+            type="text" 
+            placeholder="Szukaj drużyny lub ligi..." 
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="bg-secondary/80 text-white px-4 py-2 md:py-3 rounded-xl border border-surface focus:outline-none focus:border-accent w-full sm:w-64 md:w-72 shadow-inner transition-all placeholder:text-muted"
+          />
+        </div>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 xl:gap-6">
         {filteredMatches.length === 0 ? (

@@ -38,7 +38,7 @@ app.use('/api', matchRoutes)
 app.use('/api', betRoutes)
 app.use('/api', walletRoutes)
 
-app.get('/', (req, res) => {
+app.get('*', (req, res) => {
 	res.sendFile(join(__dirname, '../frontend/dist/index.html'))
 })
 

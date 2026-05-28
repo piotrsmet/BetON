@@ -150,8 +150,8 @@ def generate_match_simulation(
         asian_handicap_away=1.9
     )
     
-    # Generowanie symulacji minuta po minucie
-    minutes_data = _generate_minute_by_minute(home_team, away_team, home_strength)
+    # Generowanie symulacji minuta po minucie przy użyciu historycznej liczby goli
+    minutes_data = _generate_minute_by_minute(home_team, away_team, home_strength, expected_goals)
     
     final_minute = minutes_data[-1]
     
@@ -199,8 +199,9 @@ def _compute_htft_odds(p_home: float, p_draw: float, p_away: float) -> Dict[str,
 
 
 def _generate_minute_by_minute(home_team: str, away_team: str,
-                               home_strength: float) -> list:
-    """Generuje dane minuta po minucie"""
+                               home_strength: float,
+                               expected_goals: float = 2.5) -> list:
+    """Generuje dane minuta po minucie z uwzględnieniem spodziewanej liczby goli"""
     minutes = []
 
     home_score = 0
@@ -253,8 +254,10 @@ def _generate_minute_by_minute(home_team: str, away_team: str,
             # Losowe zdarzenia
             rand = random.random()
             
-            # Gol (ok 2-3 na mecz średnio)
-            goal_chance = 0.03 if minute < 80 else 0.04
+            # Prawdopodobieństwo gola w tej minucie proporcjonalne do expected_goals z plików XLSX
+            base_goal_chance = expected_goals / 90.0
+            goal_chance = base_goal_chance * 1.3 if minute > 80 else base_goal_chance
+            
             if rand < goal_chance:
                 if random.random() < home_strength:
                     home_score += 1

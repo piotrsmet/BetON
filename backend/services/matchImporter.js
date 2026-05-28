@@ -2,7 +2,7 @@ import axios from 'axios';
 import prisma from '../prisma.js';
 
 // URL do nowego API AI (FastAPI)
-const AI_BASE = 'http://localhost:8000';
+const AI_BASE = process.env.AI_BASE_URL || 'http://localhost:8000';
 const AI_SINGLE_URL = `${AI_BASE}/generate/match`;
 
 // Status pojedynczego cyklu importu - dostępny przez /api/import/status
