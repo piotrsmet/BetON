@@ -7,18 +7,23 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        'primary': '#0f1923',
-        'secondary': '#1a2c38',
-        'accent': '#9B7EBD',
-        'light': '#b0bec5',
-        'dark': '#0a0e13',
-        'slate': '#64748b',
-        'emerald': '#9B7EBD',
-        'amber': '#ffb800',
-        'indigo': '#5865f2',
-        'rose': '#ff3864',
-        'purple': '#9333ea',
-        'blue': '#1e9eff',
+        'dark': '#0B0E14',
+        'primary': '#111827',
+        'secondary': '#1A2235',
+        'surface': '#232D40',
+        'accent': '#F0B90B',
+        'accent-hover': '#D4A20A',
+        'sakura': '#E8A0BF',
+        'sakura-dark': '#6B2D5B',
+        'win': '#22C55E',
+        'lose': '#EF4444',
+        'live': '#F43F5E',
+        'info': '#3B82F6',
+        'light': '#CBD5E1',
+        'muted': '#64748B',
+        'amber': '#FBBF24',
+        'indigo': '#5865F2',
+        'purple': '#A855F7',
       },
       keyframes: {
         shine: {
@@ -31,12 +36,12 @@ module.exports = {
           '100%': { backgroundPosition: '20px 0' },
         },
         flashGreen: {
-          '0%': { borderColor: '#00ff88', boxShadow: '0 0 15px rgba(0, 255, 136, 0.3)' },
-          '100%': { borderColor: '#715A5A', boxShadow: 'none' },
+          '0%': { borderColor: '#22C55E', boxShadow: '0 0 15px rgba(34, 197, 94, 0.3)' },
+          '100%': { borderColor: 'transparent', boxShadow: 'none' },
         },
         flashRed: {
-          '0%': { borderColor: '#ff0055', boxShadow: '0 0 15px rgba(255, 0, 85, 0.3)' },
-          '100%': { borderColor: '#715A5A', boxShadow: 'none' },
+          '0%': { borderColor: '#EF4444', boxShadow: '0 0 15px rgba(239, 68, 68, 0.3)' },
+          '100%': { borderColor: 'transparent', boxShadow: 'none' },
         },
         fall: {
           '0%': { transform: 'translateY(0) rotate(0deg)', opacity: 1 },
@@ -71,23 +76,6 @@ module.exports = {
           '0%': { opacity: 0, transform: 'scale(0.8)' },
           '100%': { opacity: 1, transform: 'scale(1)' },
         },
-        glitch: {
-          '0%, 100%': { transform: 'translate(0)' },
-          '20%': { transform: 'translate(-2px, 2px)' },
-          '40%': { transform: 'translate(-2px, -2px)' },
-          '60%': { transform: 'translate(2px, 2px)' },
-          '80%': { transform: 'translate(2px, -2px)' },
-        },
-        glitchRed: {
-          '0%, 100%': { transform: 'translate(0)' },
-          '33%': { transform: 'translate(-4px, 0)' },
-          '66%': { transform: 'translate(4px, 0)' },
-        },
-        glitchCyan: {
-          '0%, 100%': { transform: 'translate(0)' },
-          '33%': { transform: 'translate(4px, 0)' },
-          '66%': { transform: 'translate(-4px, 0)' },
-        },
         expandRing: {
           '0%': { width: '0', height: '0', opacity: 1 },
           '100%': { width: '800px', height: '800px', opacity: 0 },
@@ -102,14 +90,10 @@ module.exports = {
             opacity: 0 
           },
         },
-        typing: {
-          '0%': { width: '0' },
-          '100%': { width: '100%' },
+        pulseGlow: {
+          '0%, 100%': { boxShadow: '0 0 5px rgba(240, 185, 11, 0.3)' },
+          '50%': { boxShadow: '0 0 20px rgba(240, 185, 11, 0.6)' },
         },
-        scan: {
-          '0%': { transform: 'translateY(-100%)' },
-          '100%': { transform: 'translateY(100%)' },
-        }
       }
     },
   },

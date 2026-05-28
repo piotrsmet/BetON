@@ -1,19 +1,19 @@
 import React, { useState, useEffect } from 'react';
+import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { LoginScreen } from './features/auth/LoginScreen';
 import { RegisterScreen } from './features/auth/RegisterScreen';
 import { Dashboard } from './features/dashboard/Dashboard';
 import { LoginAnimation } from './components/layout/LoginAnimation';
+import { ProtectedRoute } from './components/layout/ProtectedRoute';
 import { apiClient } from './api/client';
-import { Loader } from './components/ui/Loader';
 import { BettingProvider } from './context/BettingContext';
 import './App.css';
 
 function App() {
-  const [currentScreen, setCurrentScreen] = useState('login');
   const [user, setUser] = useState(null);
   const [isCheckingSession, setIsCheckingSession] = useState(true);
-  const [isTransitioning, setIsTransitioning] = useState(false);
   const [showLoginAnimation, setShowLoginAnimation] = useState(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const checkUserSession = async () => {
@@ -21,7 +21,6 @@ function App() {
         const data = await apiClient.checkSession();
         if (data.isLoggedIn) {
           setUser(data);
-          setCurrentScreen('dashboard');
         }
       } catch (error) {
         console.error('Session check failed', error);
@@ -40,31 +39,19 @@ function App() {
 
   const handleAnimationComplete = () => {
     setShowLoginAnimation(false);
-    setCurrentScreen('dashboard');
+    navigate('/', { replace: true });
   };
 
   const handleLogout = async () => {
-    setIsTransitioning(true);
     try {
       await apiClient.logout();
     } catch (error) {
       console.error('Logout failed', error);
     }
     localStorage.removeItem('beton_token');
-    setTimeout(() => {
-      setUser(null);
-      setCurrentScreen('login');
-      setTimeout(() => setIsTransitioning(false), 100);
-    }, 400);
+    setUser(null);
+    navigate('/login', { replace: true });
   };
-
-  if (isCheckingSession) {
-    return (
-      <div className="app-loader">
-        <Loader />
-      </div>
-    );
-  }
 
   return (
     <BettingProvider>
@@ -73,28 +60,26 @@ function App() {
           <LoginAnimation onComplete={handleAnimationComplete} />
         )}
         
-        <div 
-          className={`transition-opacity duration-500 ease-in-out ${
-            isTransitioning 
-              ? 'opacity-0' 
-              : 'opacity-100'
-          }`}
-        >
-          {currentScreen === 'login' && (
-            <LoginScreen 
-              onSwitchToRegister={() => setCurrentScreen('register')} 
-              onLoginSuccess={handleLoginSuccess}
-            />
-          )}
-          
-          {currentScreen === 'register' && (
-            <RegisterScreen onSwitchToLogin={() => setCurrentScreen('login')} />
-          )}
+        <Routes>
+          <Route 
+            path="/login" 
+            element={
+              user && !showLoginAnimation 
+                ? <Navigate to="/" replace /> 
+                : <LoginScreen onLoginSuccess={handleLoginSuccess} />
+            } 
+          />
+          <Route 
+            path="/register" 
+            element={
+              user ? <Navigate to="/" replace /> : <RegisterScreen />
+            } 
+          />
 
-          {currentScreen === 'dashboard' && (
-            <Dashboard user={user} onLogout={handleLogout} />
-          )}
-        </div>
+          <Route element={<ProtectedRoute user={user} isCheckingSession={isCheckingSession} />}>
+            <Route path="/*" element={<Dashboard user={user} onLogout={handleLogout} />} />
+          </Route>
+        </Routes>
       </div>
     </BettingProvider>
   );

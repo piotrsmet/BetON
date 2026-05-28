@@ -69,39 +69,73 @@ def generate_match_simulation(
     if date is None:
         date = datetime.now().strftime("%Y-%m-%d")
     
-    # Generowanie kursów na podstawie losowej siły drużyn
-    home_strength = random.uniform(0.4, 0.6)
-    away_strength = 1 - home_strength
+    # Generowanie kursów na podstawie statystyk historycznych
+    if use_historical_data:
+        from app.rag_service import get_rag_service
+        rag = get_rag_service()
+        home_stats = rag.get_team_historical_stats(home_team)
+        away_stats = rag.get_team_historical_stats(away_team)
+        
+        home_wr = home_stats.get("win_rate", 45.0) / 100.0 if "error" not in home_stats else 0.45
+        away_wr = away_stats.get("win_rate", 35.0) / 100.0 if "error" not in away_stats else 0.35
+        home_avg_goals = home_stats.get("avg_goals_scored", 1.5) if "error" not in home_stats else 1.5
+        away_avg_goals = away_stats.get("avg_goals_scored", 1.1) if "error" not in away_stats else 1.1
+        
+        s_rate = home_wr + away_wr + 0.25 # 0.25 jako bazowe na remis
+        home_win_prob = max(0.1, min(0.8, home_wr / s_rate))
+        away_win_prob = max(0.1, min(0.8, away_wr / s_rate))
+        draw_prob = max(0.1, 1.0 - home_win_prob - away_win_prob)
+        
+        expected_goals = home_avg_goals + away_avg_goals
+        home_strength = home_win_prob
+    else:
+        home_strength = random.uniform(0.4, 0.6)
+        home_win_prob = home_strength * 0.5 + 0.2
+        draw_prob = 0.25
+        away_win_prob = 1 - home_win_prob - draw_prob
+        expected_goals = 2.5
+        home_avg_goals = 1.2
+        away_avg_goals = 1.0
+        
+    def prob_to_odd(p):
+        p = max(0.02, min(0.98, p))
+        # Dodajemy delikatny szum do kursu
+        jitter = random.uniform(-0.02, 0.02)
+        return round(max(1.05, min(50.0, 0.95 / p + jitter)), 2)
+        
+    import math
+    # OU 2.5
+    z_goals = (expected_goals - 2.5) / 1.5
+    over_2_5_prob = 1 / (1 + math.exp(-z_goals))
     
-    # Oblicz kursy (simplified Poisson)
-    home_win_prob = home_strength * 0.5 + 0.2
-    draw_prob = 0.25
-    away_win_prob = 1 - home_win_prob - draw_prob
+    # BTTS
+    btts_yes_prob = 1 - math.exp(-home_avg_goals * 0.8) * math.exp(-away_avg_goals * 0.8)
+    btts_yes_prob = max(0.3, min(0.8, btts_yes_prob))
     
-    # HT/FT - prawdopodobieństwa z prostego modelu (gospodarz mocniejszy -> 1/1 bardziej prawdopodobne)
+    # HT/FT - prawdopodobieństwa z prostego modelu
     htft = _compute_htft_odds(home_win_prob, draw_prob, away_win_prob)
 
     odds = PreMatchOdds(
-        home_win=round(0.95 / home_win_prob, 2),
-        draw=round(0.95 / draw_prob, 2),
-        away_win=round(0.95 / away_win_prob, 2),
-        over_2_5=round(random.uniform(1.7, 2.3), 2),
-        under_2_5=round(random.uniform(1.6, 2.1), 2),
-        btts_yes=round(random.uniform(1.7, 2.0), 2),
-        btts_no=round(random.uniform(1.8, 2.1), 2),
+        home_win=prob_to_odd(home_win_prob),
+        draw=prob_to_odd(draw_prob),
+        away_win=prob_to_odd(away_win_prob),
+        over_2_5=prob_to_odd(over_2_5_prob),
+        under_2_5=prob_to_odd(1 - over_2_5_prob),
+        btts_yes=prob_to_odd(btts_yes_prob),
+        btts_no=prob_to_odd(1 - btts_yes_prob),
         goals_line=2.5,
         corners_line=9.5,
-        corners_over=round(random.uniform(1.75, 2.1), 2),
-        corners_under=round(random.uniform(1.7, 2.05), 2),
+        corners_over=prob_to_odd(0.55),
+        corners_under=prob_to_odd(0.45),
         cards_line=4.5,
-        cards_over=round(random.uniform(1.75, 2.1), 2),
-        cards_under=round(random.uniform(1.7, 2.05), 2),
+        cards_over=prob_to_odd(0.50),
+        cards_under=prob_to_odd(0.50),
         sot_line=8.5,
-        sot_over=round(random.uniform(1.75, 2.1), 2),
-        sot_under=round(random.uniform(1.75, 2.1), 2),
+        sot_over=prob_to_odd(0.50),
+        sot_under=prob_to_odd(0.50),
         offsides_line=3.5,
-        offsides_over=round(random.uniform(1.75, 2.1), 2),
-        offsides_under=round(random.uniform(1.75, 2.1), 2),
+        offsides_over=prob_to_odd(0.45),
+        offsides_under=prob_to_odd(0.55),
         htft_1_1=htft["1/1"],
         htft_1_x=htft["1/X"],
         htft_1_2=htft["1/2"],

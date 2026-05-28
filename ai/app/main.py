@@ -115,7 +115,7 @@ async def get_metrics():
 
 
 @app.post("/ask", response_model=APIResponse)
-async def ask(request: AskRequest, req: Request):
+def ask(request: AskRequest, req: Request):
     """
     Główny endpoint - przetwarza pytanie przez LLM z function-calling i RAG.
     
@@ -199,7 +199,7 @@ Odpowiedz na pytanie używając dostępnych narzędzi jeśli to potrzebne."""
 
 
 @app.post("/generate/match")
-async def generate_single_match(request: GenerateMatchRequest):
+def generate_single_match(request: GenerateMatchRequest):
     """Generuje symulację pojedynczego meczu"""
     start_time = time.time()
     
@@ -222,7 +222,7 @@ async def generate_single_match(request: GenerateMatchRequest):
 
 
 @app.post("/generate/batch")
-async def generate_batch_matches(request: GenerateBatchRequest):
+def generate_batch_matches(request: GenerateBatchRequest):
     """Generuje symulacje wielu meczów naraz (max 10)"""
     start_time = time.time()
     
@@ -248,37 +248,50 @@ async def generate_batch_matches(request: GenerateBatchRequest):
 
 
 @app.post("/odds/live")
-async def compute_live_odds(request: LiveOddsRequest):
+def compute_live_odds(request: LiveOddsRequest):
     """
-    Przelicza kursy na żywo na podstawie aktualnego stanu meczu.
-    Zwraca słownik z kursami dla wszystkich rynków (1X2, OU_GOALS, BTTS, OU_CORNERS, OU_CARDS).
-    Logika: prosta probabilistyka — wpływa wynik, czas, liczba goli/rożnych/kartek.
+    Przelicza kursy na żywo na podstawie aktualnego stanu meczu oraz statystyk historycznych.
+    Zwraca słownik z kursami dla wszystkich rynków.
     """
     import math, random
     start_time = time.time()
     try:
+        from app.rag_service import get_rag_service
+        rag = get_rag_service()
+        
+        # Pobranie historycznych statystyk z plików XLSX (DANE)
+        home_stats = rag.get_team_historical_stats(request.home_team)
+        away_stats = rag.get_team_historical_stats(request.away_team)
+        
+        home_win_rate = home_stats.get("win_rate", 45.0) / 100.0 if "error" not in home_stats else 0.45
+        away_win_rate = away_stats.get("win_rate", 35.0) / 100.0 if "error" not in away_stats else 0.35
+        home_avg_goals = home_stats.get("avg_goals_scored", 1.5) if "error" not in home_stats else 1.5
+        away_avg_goals = away_stats.get("avg_goals_scored", 1.1) if "error" not in away_stats else 1.1
+
         # Margines bukmacherski
         MARGIN = 0.95
-        # 100% przy minucie 90, 0% przy 0 - im później tym mniej "potencjalnego" dzieje się dalej
         progress = min(max(request.minute / 90.0, 0.0), 1.0)
         remaining = max(1.0 - progress, 0.01)
 
         # ---- 1X2 ----
         diff = request.home_score - request.away_score
-        # Bazowe prawdopodobieństwo gospodarzy ~ 0.45 + bonus za prowadzenie, malejący ze stratą czasu
         home_lead_bonus = 0.20 * diff * (0.4 + 0.6 * progress)
-        home_p = max(0.05, min(0.92, 0.45 + home_lead_bonus))
-        away_p_base = max(0.05, min(0.92, 0.35 - home_lead_bonus))
-        # Remis: bardziej prawdopodobny gdy diff=0 i mało czasu
+        
+        s_rate = home_win_rate + away_win_rate + 0.25 # 0.25 bazowo na remis
+        base_home_p = home_win_rate / s_rate
+        base_away_p = away_win_rate / s_rate
+        
+        home_p = max(0.05, min(0.92, base_home_p + home_lead_bonus))
+        away_p_base = max(0.05, min(0.92, base_away_p - home_lead_bonus))
         draw_p = max(0.05, 0.25 * (1 - abs(diff) * 0.3) + 0.35 * progress * (1 if diff == 0 else 0.3))
+        
         # Normalizacja
         s = home_p + away_p_base + draw_p
         home_p /= s; draw_p /= s; away_p_base /= s
 
         # ---- OU GOALS ----
         total_goals = request.home_score + request.away_score
-        expected_total = total_goals + 2.5 * remaining  # zakładamy ~2.5 gola/mecz tempo
-        # Prosty model: P(over) zależy od (expected_total - line) / scale
+        expected_total = total_goals + (home_avg_goals + away_avg_goals) * remaining
         from math import exp
         z_goals = (expected_total - request.goals_line) / max(0.8, 1.2 * remaining + 0.2)
         over_goals_p = 1 / (1 + exp(-z_goals))
@@ -288,11 +301,11 @@ async def compute_live_odds(request: LiveOddsRequest):
         if request.home_score > 0 and request.away_score > 0:
             btts_yes_p = 0.98
         else:
-            # P(zarówno gospodarz jak i gość strzeli do końca meczu)
             need_home = request.home_score == 0
             need_away = request.away_score == 0
-            p_home_scores_rest = 1 - exp(-1.3 * remaining)
-            p_away_scores_rest = 1 - exp(-1.1 * remaining)
+            # P(zarówno gospodarz jak i gość strzeli do końca meczu) w oparciu o statystyki
+            p_home_scores_rest = 1 - exp(-(home_avg_goals or 1.0) * remaining)
+            p_away_scores_rest = 1 - exp(-(away_avg_goals or 1.0) * remaining)
             btts_yes_p = 1.0
             if need_home:
                 btts_yes_p *= p_home_scores_rest
