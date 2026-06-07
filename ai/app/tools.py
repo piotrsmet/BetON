@@ -107,6 +107,13 @@ def generate_match_simulation(
     return simulation.model_dump()
 
 
+def _prob_to_odd(p: float) -> float:
+    """Konwertuje prawdopodobieństwo na kurs z uwzględnieniem marży."""
+    if p <= 0:
+        return 100.0
+    return round(0.92 / p, 2)
+
+
 def _compute_htft_odds(p_home: float, p_draw: float, p_away: float) -> Dict[str, float]:
     """Heurystyka kursów HT/FT. Wyniki "spójne" (1/1, X/X, 2/2) dostają bonus."""
     ht_home = p_home * 0.55

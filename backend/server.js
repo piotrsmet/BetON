@@ -47,9 +47,13 @@ app.listen(PORT, () => {
 	console.log(`Server działa na porcie ${PORT}`)
 
 	// Harmonogram zadań - uruchamianie raz dziennie o 3:00 rano
-	cron.schedule('0 3 * * *', async () => {
+	cron.schedule('0 12 * * *', async () => {
 		console.log('Uruchamianie planowanego importu meczów...');
-		await clearMatchData();
+		await importDailyMatches();
+	});
+
+	cron.schedule('0 16 * * *', async () => {
+		console.log('Uruchamianie planowanego importu meczów...');
 		await importDailyMatches();
 	});
 
@@ -64,14 +68,14 @@ app.listen(PORT, () => {
 		}
 	});
 
-	// Live odds tick - co 5 sekund (cron nie wspiera <minuty, używamy setInterval)
+
+	// Live odds tick - co 5 sekund
 	setInterval(() => {
 		tickLiveOdds().catch(err => console.error('tickLiveOdds error:', err));
 	}, 5000);
 
 
 	(async () => {
-		await clearMatchData();
 		await importDailyMatches();
 	})();
 

@@ -24,7 +24,7 @@ const TEAMS = [
     'Nottingham Forest', 'Sheffield United', 'Tottenham', 'West Ham', 'Wolves'
 ];
 
-const generateRandomMatchPairs = (numMatches = 5) => {
+const generateRandomMatchPairs = (numMatches = 8) => {
     const shuffled = [...TEAMS].sort(() => Math.random() - 0.5);
     const pairs = [];
     const today = new Date().toISOString().split('T')[0];
@@ -248,7 +248,7 @@ export const importDailyMatches = async (numMatches = 5) => {
 
     // Mecz #1: start za 30 sekund (pozwala graczom obejrzeć kursy przed startem)
     const baseTime = Date.now() + 30 * 1000;
-    const intervalMs = 2 * 60 * 1000; // każdy kolejny mecz +2 min
+    const intervalMs = 60 * 60 * 1000; // każdy kolejny mecz +1 godzina
 
     // Strona 1 (synchronicznie)
     try {
