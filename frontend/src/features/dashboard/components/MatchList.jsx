@@ -1,14 +1,16 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { apiClient } from '../../../api/client';
 import { useBetting } from '../../../context/BettingContext';
 
-export const MatchList = ({ onMatchSelect }) => {
+export const MatchList = () => {
   const [matches, setMatches] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [currentTime, setCurrentTime] = useState(new Date());
   const [importInfo, setImportInfo] = useState(null);
   const { addBet, bets } = useBetting();
+  const navigate = useNavigate();
 
   const fetchImportStatus = async () => {
     try {
@@ -96,8 +98,6 @@ export const MatchList = ({ onMatchSelect }) => {
     const diffMs = currentTime - matchDate;
     const minutes = Math.floor(diffMs / 60000);
     
-    // If match started 5-10m ago (based on our importer), show minutes. 
-    // Just clamp it to 0-90+
     if (minutes < 0) return matchDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     if (minutes > 90) return '90+';
     return `${minutes}'`;
@@ -106,7 +106,7 @@ export const MatchList = ({ onMatchSelect }) => {
   const handleBetClick = (e, match, type, courseId, ratio, locked) => {
     e.stopPropagation();
     if (!ratio || !courseId) return;
-    if (locked) return; // nie pozwól dodawać zablokowanego kursu
+    if (locked) return;
 
     addBet({
         matchId: match.id,
@@ -123,74 +123,105 @@ export const MatchList = ({ onMatchSelect }) => {
     return bets.some(b => b.courseId === courseId);
   };
 
+  const [activeTab, setActiveTab] = useState('ALL');
+
   if (loading && matches.length === 0) {
-      return <div className="text-white text-center p-10">Ładowanie meczów...</div>;
+      return <div className="text-light text-center p-10">Ładowanie meczów...</div>;
   }
 
   const filteredMatches = matches.filter(match => {
     const searchLower = searchQuery.toLowerCase();
-    return (
+    const matchesSearch = (
       match.nazwa_gospodarza?.toLowerCase().includes(searchLower) ||
       match.nazwa_goscia?.toLowerCase().includes(searchLower) ||
       match.liga?.toLowerCase().includes(searchLower)
     );
+    const matchesTab = activeTab === 'ALL' || match.status === activeTab;
+    return matchesSearch && matchesTab;
   });
 
   return (
     <div className="py-2 md:py-4">
       {/* Pasek postępu importu */}
       {importInfo && importInfo.inProgress && importInfo.totalRequested > 0 && (
-        <div className="mb-4 bg-secondary/60 backdrop-blur-sm rounded-xl p-4 border border-accent/20">
-          <div className="flex justify-between text-sm text-white/80 mb-2">
+        <div className="mb-4 bg-secondary/80 backdrop-blur-sm rounded-xl p-4 border border-surface/30">
+          <div className="flex justify-between text-sm text-light/80 mb-2">
             <span>Generujemy mecze ({importInfo.completed}/{importInfo.totalRequested})…</span>
             <span className="text-accent font-mono">{Math.round((importInfo.completed / importInfo.totalRequested) * 100)}%</span>
           </div>
           <div className="h-2 bg-dark/60 rounded-full overflow-hidden">
             <div
-              className="h-full bg-gradient-to-r from-accent to-emerald transition-all duration-500"
+              className="h-full bg-gradient-to-r from-accent to-accent-hover transition-all duration-500"
               style={{ width: `${(importInfo.completed / importInfo.totalRequested) * 100}%` }}
             />
           </div>
-          <div className="text-xs text-white/40 mt-2">
+          <div className="text-xs text-muted mt-2">
             Pierwszy mecz jest dostępny od razu — pozostałe pojawią się sekwencyjnie.
           </div>
         </div>
       )}
 
-      <div className="flex flex-col md:flex-row md:items-center justify-between mb-4 md:mb-6 gap-4">
-        <h3 className="text-xl md:text-2xl text-white flex items-center gap-2 md:gap-3 font-bold">
-          <span className="text-2xl md:text-3xl"></span>
-          <span>Top mecze</span>
+      <div className="flex flex-col md:flex-row md:items-center justify-between mb-4 gap-4">
+        <h3 className="text-xl md:text-2xl text-white flex items-center gap-2 md:gap-3 font-bold whitespace-nowrap">
+          <span className="text-2xl md:text-3xl">⚽</span>
+          <span>Wydarzenia</span>
         </h3>
-        <input 
-          type="text" 
-          placeholder="Szukaj drużyny lub ligi..." 
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="bg-secondary/80 text-white px-4 py-2 md:py-3 rounded-xl border border-primary focus:outline-none focus:border-accent w-full md:w-72 shadow-inner transition-all placeholder:text-light/40"
-        />
+        
+        <div className="flex flex-col sm:flex-row gap-3 md:gap-4 w-full md:w-auto">
+          {/* Zakładki */}
+          <div className="flex bg-surface/40 p-1.5 rounded-2xl border border-surface/50 w-full sm:w-auto overflow-x-auto no-scrollbar">
+            {[
+              { id: 'ALL', label: 'Wszystkie' },
+              { id: 'TRWA', label: 'Na żywo', icon: '🔴' },
+              { id: 'PLANOWANY', label: 'Nadchodzące' },
+              { id: 'ZAKONCZONY', label: 'Zakończone' }
+            ].map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex-1 sm:flex-none px-4 py-2 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${
+                  activeTab === tab.id 
+                    ? 'bg-accent text-dark shadow-lg shadow-accent/20' 
+                    : 'text-muted hover:text-white hover:bg-surface/80'
+                }`}
+              >
+                {tab.icon && <span className={`mr-2 ${activeTab === tab.id ? 'animate-pulse' : ''}`}>{tab.icon}</span>}
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          <input 
+            type="text" 
+            placeholder="Szukaj drużyny lub ligi..." 
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="bg-secondary/80 text-white px-4 py-2 md:py-3 rounded-xl border border-surface focus:outline-none focus:border-accent w-full sm:w-64 md:w-72 shadow-inner transition-all placeholder:text-muted"
+          />
+        </div>
       </div>
-      <div className="grid grid-cols-1 gap-3 md:gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 xl:gap-6">
         {filteredMatches.length === 0 ? (
-          <div className="text-light/60 text-center py-8 bg-secondary/30 rounded-2xl border border-primary/20">
+          <div className="text-muted text-center py-8 bg-secondary/30 rounded-2xl border border-surface/20">
             Nie znaleziono meczów pasujących do "{searchQuery}"
           </div>
         ) : filteredMatches.map(match => {
           // Determine status text/color
           const timeDisplay = calculateTime(match.data_spotkania, match.status);
-          const isLive = match.status === 'TRWA' || (match.status !== 'ZAKONCZONY' && match.status !== 'PLANOWANY');
-          // Simple live check: if minutes contain '
           const reallyLive = timeDisplay.includes("'");
 
           return (
             <div 
               key={match.id} 
-              onClick={() => onMatchSelect && onMatchSelect(match.id)}
-              className={`cursor-pointer bg-secondary/50 backdrop-blur-sm rounded-2xl p-4 md:p-6 border ${reallyLive ? 'border-accent/40 shadow-accent/10' : 'border-accent/10'} hover:-translate-y-1 hover:shadow-2xl transition-all duration-300 relative overflow-hidden`}
+              onClick={() => navigate(`/match/${match.id}`)}
+              className={`cursor-pointer bg-dark/40 backdrop-blur-md rounded-3xl p-5 md:p-7 border ${reallyLive ? 'border-live/50 shadow-[0_0_20px_rgba(244,63,94,0.2)]' : 'border-surface/50'} hover:-translate-y-2 hover:shadow-[0_15px_40px_-15px_rgba(240,185,11,0.3)] hover:border-accent/50 hover:bg-dark/60 transition-all duration-500 relative overflow-hidden group`}
             >
-              <div className="flex justify-between mb-3 md:mb-4 text-xs md:text-sm">
-                <span className="bg-primary/80 text-accent px-2 md:px-3 py-1 rounded-full font-bold border border-accent/20">{match.liga}</span>
-                <span className={`font-medium ${reallyLive ? 'text-accent animate-pulse' : 'text-light/60'}`}>
+              {/* Subtle inner glow */}
+              <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+              
+              <div className="relative z-10 flex justify-between mb-4 md:mb-5 text-xs md:text-sm">
+                <span className="bg-surface/60 text-accent px-2 md:px-3 py-1 rounded-full font-bold border border-accent/20">{match.liga}</span>
+                <span className={`font-medium ${reallyLive ? 'text-live animate-pulse' : 'text-muted'}`}>
                     {reallyLive && '● '} {timeDisplay}
                 </span>
               </div>
@@ -201,9 +232,9 @@ export const MatchList = ({ onMatchSelect }) => {
                   {match.status === 'PLANOWANY' ? (
                     <span className="text-accent text-xs md:text-sm font-bold">VS</span>
                   ) : (
-                    <div className="bg-dark/80 text-white font-black text-xl md:text-2xl px-3 md:px-5 py-1 md:py-2 rounded-xl border border-accent/20 shadow-inner inline-flex items-center justify-center min-w-[80px]">
+                    <div className="bg-dark/80 text-white font-black text-xl md:text-2xl px-3 md:px-5 py-1 md:py-2 rounded-xl border border-surface/30 shadow-inner inline-flex items-center justify-center min-w-[80px]">
                       <span className={(match.wynik_gospodarz ?? 0) > (match.wynik_gosc ?? 0) ? 'text-accent' : ''}>{match.wynik_gospodarz ?? 0}</span>
-                      <span className="mx-1 md:mx-2 text-light/40">:</span>
+                      <span className="mx-1 md:mx-2 text-muted">:</span>
                       <span className={(match.wynik_gosc ?? 0) > (match.wynik_gospodarz ?? 0) ? 'text-accent' : ''}>{match.wynik_gosc ?? 0}</span>
                     </div>
                   )}
@@ -213,9 +244,9 @@ export const MatchList = ({ onMatchSelect }) => {
 
               <div className="grid grid-cols-3 gap-2 md:gap-3">
                 {[
-                  { key: 'home', typ: '1', sel: 'bg-blue/40 border-blue shadow-lg shadow-blue/20 ring-1 ring-blue', base: 'border-blue/30 hover:bg-blue/20 hover:border-blue', hover: 'group-hover:text-blue' },
-                  { key: 'draw', typ: 'X', sel: 'bg-amber/40 border-amber shadow-lg shadow-amber/20 ring-1 ring-amber', base: 'border-amber/30 hover:bg-amber/20 hover:border-amber', hover: 'group-hover:text-amber' },
-                  { key: 'away', typ: '2', sel: 'bg-rose/40 border-rose shadow-lg shadow-rose/20 ring-1 ring-rose', base: 'border-rose/30 hover:bg-rose/20 hover:border-rose', hover: 'group-hover:text-rose' }
+                  { key: 'home', typ: '1', sel: 'bg-info/30 border-info shadow-lg shadow-info/10 ring-1 ring-info', base: 'border-info/20 hover:bg-info/15 hover:border-info/40', hover: 'group-hover:text-info' },
+                  { key: 'draw', typ: 'X', sel: 'bg-amber/30 border-amber shadow-lg shadow-amber/10 ring-1 ring-amber', base: 'border-amber/20 hover:bg-amber/15 hover:border-amber/40', hover: 'group-hover:text-amber' },
+                  { key: 'away', typ: '2', sel: 'bg-live/30 border-live shadow-lg shadow-live/10 ring-1 ring-live', base: 'border-live/20 hover:bg-live/15 hover:border-live/40', hover: 'group-hover:text-live' }
                 ].map(({ key, typ, sel: selCls, base, hover }) => {
                   const id = match.odds?.ids?.[key];
                   const ratio = match.odds?.[key];
@@ -226,12 +257,12 @@ export const MatchList = ({ onMatchSelect }) => {
                       key={key}
                       onClick={(e) => handleBetClick(e, match, typ, id, ratio, locked)}
                       disabled={locked || !ratio}
-                      className={`bg-primary/60 border rounded-xl p-2 md:p-4 flex flex-col items-center transition-all group relative ${sel ? selCls : base} ${(!ratio || locked) ? 'opacity-50 cursor-not-allowed' : ''} ${locked ? 'animate-pulse' : ''}`}
+                      className={`bg-surface/40 border rounded-xl p-2 md:p-4 flex flex-col items-center transition-all group relative ${sel ? selCls : base} ${(!ratio || locked) ? 'opacity-50 cursor-not-allowed' : ''} ${locked ? 'animate-pulse' : ''}`}
                     >
-                      <span className={`text-xs mb-1 font-medium ${sel ? 'text-white' : `text-light/60 ${hover}`}`}>{typ}</span>
+                      <span className={`text-xs mb-1 font-medium ${sel ? 'text-white' : `text-muted ${hover}`}`}>{typ}</span>
                       <span className={`font-bold text-lg md:text-2xl ${sel ? 'text-white' : `text-white ${hover}`}`}>{ratio || '-'}</span>
                       {locked && (
-                        <span className="absolute top-1 right-1 text-[10px] bg-dark/80 text-amber-300 px-1.5 py-0.5 rounded font-bold">🔒</span>
+                        <span className="absolute top-1 right-1 text-[10px] bg-dark/80 text-amber px-1.5 py-0.5 rounded font-bold">🔒</span>
                       )}
                     </button>
                   );

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { Button } from '../../components/ui/Button';
+import { useNavigate } from 'react-router-dom';
+import Snowfall from 'react-snowfall';
 import { Loader } from '../../components/ui/Loader';
-import { BackgroundAnimation } from '../../components/layout/BackgroundAnimation';
 import { apiClient } from '../../api/client';
 
 export const RegisterScreen = ({ onSwitchToLogin }) => {
@@ -10,6 +10,7 @@ export const RegisterScreen = ({ onSwitchToLogin }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState(null);
+  const navigate = useNavigate();
 
   const handleRegister = async (e) => {
     e.preventDefault();
@@ -19,7 +20,7 @@ export const RegisterScreen = ({ onSwitchToLogin }) => {
     try {
       await apiClient.register(username, email, password);
       alert('Rejestracja pomyślna! Możesz się teraz zalogować.');
-      onSwitchToLogin();
+      navigate('/login');
     } catch (err) {
       setError(err.message);
     } finally {
@@ -28,85 +29,111 @@ export const RegisterScreen = ({ onSwitchToLogin }) => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center relative text-white">
-      <BackgroundAnimation />
+    <div className="min-h-screen flex items-center justify-center relative overflow-hidden bg-dark">
+      {/* Cherry Tree Background */}
+      <div 
+        className="absolute inset-0 z-0 bg-cover bg-center opacity-40 mix-blend-screen transition-all duration-1000"
+        style={{ backgroundImage: 'url(/cherry_bg.png)' }}
+      />
+
+      {/* Sakura gradient overlay */}
+      <div className="absolute inset-0 z-0 bg-gradient-to-b from-sakura-dark/30 via-dark/60 to-dark/90" />
+      
+      {/* Cherry petals falling */}
+      <Snowfall 
+        color="#E8A0BF"
+        snowflakeCount={120}
+        radius={[1.5, 4.5]}
+        speed={[0.5, 2.5]}
+        wind={[1.5, 3.5]}
+        style={{
+          position: 'fixed',
+          width: '100vw',
+          height: '100vh',
+          zIndex: 1,
+        }}
+      />
       
       <div className="z-10 w-full max-w-md px-4">
-        <div className="bg-secondary/60 backdrop-blur-xl border border-light/20 rounded-2xl p-10 shadow-2xl">
-          <h1 className="text-5xl font-bold text-center mb-2 bg-gradient-to-r from-white to-light bg-clip-text text-transparent">
+        <div className="bg-secondary/80 backdrop-blur-xl rounded-2xl p-8 md:p-10 shadow-2xl border border-surface/50">
+          {/* Logo */}
+          <h1 className="text-5xl font-black text-center mb-2 bg-gradient-to-r from-accent via-amber to-accent bg-clip-text text-transparent">
             BetON
           </h1>
-          <p className="text-center text-light/80 mb-8">Dołącz do gry</p>
+          <p className="text-center text-muted mb-8 font-medium text-sm">Dołącz do gry</p>
           
           {error && (
-            <div className="bg-red-500/20 border border-red-500/50 text-red-200 px-3 py-2 rounded-lg mb-4 text-center text-sm">
+            <div className="bg-lose/15 border border-lose/40 text-lose px-4 py-3 rounded-xl mb-4 text-center text-sm font-medium">
               {error}
             </div>
           )}
 
-          <form onSubmit={handleRegister} className="flex flex-col gap-6">
+          <form onSubmit={handleRegister} className="flex flex-col gap-5">
             <div className="flex flex-col gap-2">
-              <label htmlFor="username" className="text-sm font-medium text-light">
+              <label htmlFor="reg-username" className="text-sm font-semibold text-light">
                 Nazwa użytkownika
               </label>
               <input 
                 type="text" 
-                id="username" 
+                id="reg-username" 
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 placeholder="Wpisz nazwę użytkownika"
-                className="px-3 py-2 rounded-lg border border-light/20 bg-black/20 text-white transition-all focus:outline-none focus:border-accent focus:bg-black/30"
+                className="px-4 py-3 rounded-xl border border-surface bg-dark/80 text-white transition-all focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 placeholder:text-muted/60"
                 required 
               />
             </div>
 
             <div className="flex flex-col gap-2">
-              <label htmlFor="email" className="text-sm font-medium text-light">
+              <label htmlFor="reg-email" className="text-sm font-semibold text-light">
                 Email
               </label>
               <input 
                 type="email" 
-                id="email" 
+                id="reg-email" 
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="twoj@email.com"
-                className="px-3 py-2 rounded-lg border border-light/20 bg-black/20 text-white transition-all focus:outline-none focus:border-accent focus:bg-black/30"
+                className="px-4 py-3 rounded-xl border border-surface bg-dark/80 text-white transition-all focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 placeholder:text-muted/60"
                 required 
               />
             </div>
             
             <div className="flex flex-col gap-2">
-              <label htmlFor="password" className="text-sm font-medium text-light">
+              <label htmlFor="reg-password" className="text-sm font-semibold text-light">
                 Hasło
               </label>
               <input 
                 type="password" 
-                id="password" 
+                id="reg-password" 
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="px-3 py-2 rounded-lg border border-light/20 bg-black/20 text-white transition-all focus:outline-none focus:border-accent focus:bg-black/30"
+                className="px-4 py-3 rounded-xl border border-surface bg-dark/80 text-white transition-all focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 placeholder:text-muted/60"
                 required 
               />
             </div>
 
-            <div className="flex justify-center mt-4">
+            <div className="flex justify-center mt-2">
               {isLoading ? (
                 <Loader />
               ) : (
-                <Button type="submit" variant="primary">
+                <button 
+                  type="submit" 
+                  className="w-full py-3.5 rounded-xl font-bold text-base bg-gradient-to-r from-accent to-amber text-dark shadow-lg hover:shadow-accent/40 hover:scale-[1.02] active:scale-[0.98] transition-all"
+                >
                   Zarejestruj się
-                </Button>
+                </button>
               )}
             </div>
           </form>
           
           <div className="mt-6 text-center text-sm">
             <button 
-              className="text-light/80 hover:text-light hover:underline transition-all"
-              onClick={onSwitchToLogin}
+              className="text-muted hover:text-accent transition-all font-medium"
+              onClick={() => navigate('/login')}
             >
-              Masz już konto? Zaloguj się
+              Masz już konto? <span className="text-accent font-semibold">Zaloguj się</span>
             </button>
           </div>
         </div>

@@ -1,15 +1,19 @@
 import React, { useEffect, useState, useRef } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { apiClient } from '../../../api/client';
 import { useBetting } from '../../../context/BettingContext';
 
-const isLocked = (odd) => odd?.status === 'ZABLOKOWANY';
+const isLockedStatus = (odd) => odd?.status === 'ZABLOKOWANY';
 
-export const MatchDetails = ({ matchId, onBack }) => {
+export const MatchDetails = () => {
+    const { id: matchId } = useParams();
+    const navigate = useNavigate();
     const [match, setMatch] = useState(null);
     const [timeline, setTimeline] = useState([]);
     const [currentStats, setCurrentStats] = useState(null);
     const [currentScore, setCurrentScore] = useState({ home: 0, away: 0 });
     const [loading, setLoading] = useState(true);
+    const [activeTab, setActiveTab] = useState('typy');
     const { addBet, bets } = useBetting();
     const timelineRef = useRef(null);
 
@@ -51,13 +55,10 @@ export const MatchDetails = ({ matchId, onBack }) => {
                 minute = 90; 
             } else {
                 // PLANOWANY or TRWA - simulate live based on time
-                // If minute < 0, match hasn't started -> empty timeline
                 if (minute < 0) {
                     minute = 0;
                     filteredEvents = [];
                 } else {
-                    // Match in progress
-                    // Filter events that happened at or before current minute
                     filteredEvents = match.przebieg.filter(e => e.minuta <= minute);
                 }
             }
@@ -67,7 +68,7 @@ export const MatchDetails = ({ matchId, onBack }) => {
             
             // Update stats & score from latest available event
             if (filteredEvents.length > 0) {
-                const latest = filteredEvents[filteredEvents.length - 1]; // Last chronological event
+                const latest = filteredEvents[filteredEvents.length - 1];
                 
                 setCurrentStats({
                     rozne_gospodarz: latest.rozne_gospodarz || 0,
@@ -89,7 +90,6 @@ export const MatchDetails = ({ matchId, onBack }) => {
                 const [h, a] = latest.wynik.split(':');
                 setCurrentScore({ home: h, away: a });
             } else {
-                // Default stats or pre-match
                  setCurrentStats({
                     rozne_gospodarz: 0,
                     rozne_gosc: 0,
@@ -111,7 +111,7 @@ export const MatchDetails = ({ matchId, onBack }) => {
         };
 
         updateTimeline();
-        const timer = setInterval(updateTimeline, 5000); // Update timeline view every 5s
+        const timer = setInterval(updateTimeline, 5000);
         return () => clearInterval(timer);
 
     }, [match]);
@@ -133,9 +133,9 @@ export const MatchDetails = ({ matchId, onBack }) => {
 
     const isSelected = (courseId) => bets.some(b => b.courseId === courseId);
 
-    // Animacja zmiany kursu - śledź poprzednie wartości
+    // Animacja zmiany kursu
     const prevOddsRef = useRef({});
-    const [oddsTrend, setOddsTrend] = useState({}); // { [oddId]: 'up' | 'down' }
+    const [oddsTrend, setOddsTrend] = useState({});
     useEffect(() => {
         if (!match?.odds) return;
         const trends = {};
@@ -154,7 +154,7 @@ export const MatchDetails = ({ matchId, onBack }) => {
         }
     }, [match?.odds]);
 
-    const trendClass = (id) => oddsTrend[id] === 'up' ? 'text-emerald-400' : oddsTrend[id] === 'down' ? 'text-rose-400' : '';
+    const trendClass = (id) => oddsTrend[id] === 'up' ? 'text-win' : oddsTrend[id] === 'down' ? 'text-lose' : '';
 
     // Grupowanie kursów wg rodzaju rynku
     const oddsByRodzaj = (match?.odds || []).reduce((acc, o) => {
@@ -172,11 +172,12 @@ export const MatchDetails = ({ matchId, onBack }) => {
         const line = left?.linia ?? right?.linia;
         const headerLine = line != null ? ` (${Number(line)})` : '';
         return (
-            <div className="bg-dark/30 rounded-2xl p-6 border border-white/5">
-                <h4 className="text-white font-bold mb-4">{title}{headerLine}</h4>
+            <div className="bg-secondary/50 rounded-2xl p-5 border border-surface/30">
+                <h4 className="text-white font-bold mb-4 text-sm">{title}{headerLine}</h4>
                 <div className="grid grid-cols-2 gap-2">
                     {[{odd: left, label: leftLabel, typ: leftTyp}, {odd: right, label: rightLabel, typ: rightTyp}].map(({odd, label, typ}) => {
-                        const locked = isLocked(odd);
+                        const locked = isLockedStatus(odd) || match?.status === 'ZAKONCZONY';
+                        const isWon = match?.status === 'ZAKONCZONY' && odd?.wynik === 'WYGRANY';
                         const sel = odd && isSelected(odd.id);
                         return (
                             <button
@@ -184,15 +185,20 @@ export const MatchDetails = ({ matchId, onBack }) => {
                                 disabled={!odd || locked}
                                 onClick={() => handleBetClick(typ, odd?.id, odd?.kurs, `${title}: ${label}`, locked, rodzaj)}
                                 className={`p-3 rounded-xl border flex flex-col items-center transition-all relative ${
-                                    sel
-                                    ? 'bg-accent text-dark border-accent'
-                                    : 'bg-white/5 border-white/10 hover:bg-white/10 text-white'
-                                } ${!odd ? 'opacity-40 cursor-not-allowed' : ''} ${locked ? 'opacity-60 cursor-not-allowed animate-pulse' : ''}`}
+                                    isWon
+                                    ? 'bg-win/20 text-win border-win shadow-[0_0_15px_rgba(34,197,94,0.2)]'
+                                    : sel
+                                    ? 'bg-accent/20 text-accent border-accent'
+                                    : 'bg-surface/30 border-surface/50 hover:bg-surface/60 text-white'
+                                } ${!odd ? 'opacity-40 cursor-not-allowed' : ''} ${locked && !isWon ? 'opacity-60 cursor-not-allowed' : ''} ${odd?.status === 'ZABLOKOWANY' ? 'animate-pulse' : ''}`}
                             >
                                 <span className="text-xs opacity-60 font-bold mb-1">{label}</span>
-                                <span className={`font-bold text-lg transition-colors duration-500 ${trendClass(odd?.id)}`}>{odd?.kurs ?? '-'}</span>
-                                {locked && (
-                                    <span className="absolute top-1 right-1 text-[10px] bg-dark/80 text-amber-300 px-1.5 py-0.5 rounded font-bold">🔒</span>
+                                <span className={`font-bold text-lg transition-colors duration-500 ${!isWon && trendClass(odd?.id)}`}>{odd?.kurs ?? '-'}</span>
+                                {odd?.status === 'ZABLOKOWANY' && !isWon && (
+                                    <span className="absolute top-1 right-1 text-[10px] bg-dark/80 text-amber px-1.5 py-0.5 rounded font-bold">🔒</span>
+                                )}
+                                {isWon && (
+                                    <span className="absolute -top-2 -right-2 text-sm bg-dark/80 rounded-full w-6 h-6 flex items-center justify-center border border-win text-win font-black">✓</span>
                                 )}
                             </button>
                         );
@@ -202,7 +208,7 @@ export const MatchDetails = ({ matchId, onBack }) => {
         );
     };
 
-    // HTFT - render 9-pole z 3 wierszami
+    // HTFT
     const renderHtft = () => {
         const list = oddsByRodzaj['HTFT'] || [];
         if (list.length === 0) return null;
@@ -212,15 +218,15 @@ export const MatchDetails = ({ matchId, onBack }) => {
             ['X/1', 'X/X', 'X/2'],
             ['2/1', '2/X', '2/2']
         ];
-        const labels = { '1': '1. poł', 'X': 'remis', '2': '2.' };
         return (
-            <div className="bg-dark/30 rounded-2xl p-6 border border-white/5">
-                <h4 className="text-white font-bold mb-2">1. połowa / mecz</h4>
-                <p className="text-xs text-white/50 mb-4">Wybór wyniku do przerwy <b>i</b> wyniku końcowego.</p>
+            <div className="bg-secondary/50 rounded-2xl p-5 border border-surface/30">
+                <h4 className="text-white font-bold mb-2 text-sm">1. połowa / mecz</h4>
+                <p className="text-xs text-muted mb-4">Wybór wyniku do przerwy <b>i</b> wyniku końcowego.</p>
                 <div className="grid grid-cols-3 gap-2">
                     {layout.flat().map(typ => {
                         const odd = map[typ];
-                        const locked = isLocked(odd);
+                        const locked = isLockedStatus(odd) || match?.status === 'ZAKONCZONY';
+                        const isWon = match?.status === 'ZAKONCZONY' && odd?.wynik === 'WYGRANY';
                         const sel = odd && isSelected(odd.id);
                         const [ht, ft] = typ.split('/');
                         return (
@@ -229,15 +235,20 @@ export const MatchDetails = ({ matchId, onBack }) => {
                                 disabled={!odd || locked}
                                 onClick={() => handleBetClick(typ, odd?.id, odd?.kurs, `HT/FT ${typ}`, locked, 'HTFT')}
                                 className={`p-2 rounded-xl border flex flex-col items-center transition-all relative ${
-                                    sel
-                                    ? 'bg-accent text-dark border-accent'
-                                    : 'bg-white/5 border-white/10 hover:bg-white/10 text-white'
-                                } ${!odd ? 'opacity-40 cursor-not-allowed' : ''} ${locked ? 'opacity-60 cursor-not-allowed animate-pulse' : ''}`}
+                                    isWon
+                                    ? 'bg-win/20 text-win border-win shadow-[0_0_15px_rgba(34,197,94,0.2)]'
+                                    : sel
+                                    ? 'bg-accent/20 text-accent border-accent'
+                                    : 'bg-surface/30 border-surface/50 hover:bg-surface/60 text-white'
+                                } ${!odd ? 'opacity-40 cursor-not-allowed' : ''} ${locked && !isWon ? 'opacity-60 cursor-not-allowed' : ''} ${odd?.status === 'ZABLOKOWANY' ? 'animate-pulse' : ''}`}
                             >
                                 <span className="text-[10px] opacity-60 font-bold tracking-wide">{ht} → {ft}</span>
-                                <span className={`font-bold text-base transition-colors duration-500 ${trendClass(odd?.id)}`}>{odd?.kurs ?? '-'}</span>
-                                {locked && (
-                                    <span className="absolute top-1 right-1 text-[9px] bg-dark/80 text-amber-300 px-1 rounded font-bold">🔒</span>
+                                <span className={`font-bold text-base transition-colors duration-500 ${!isWon && trendClass(odd?.id)}`}>{odd?.kurs ?? '-'}</span>
+                                {odd?.status === 'ZABLOKOWANY' && !isWon && (
+                                    <span className="absolute top-1 right-1 text-[9px] bg-dark/80 text-amber px-1 rounded font-bold">🔒</span>
+                                )}
+                                {isWon && (
+                                    <span className="absolute -top-1.5 -right-1.5 text-[10px] bg-dark/80 rounded-full w-4 h-4 flex items-center justify-center border border-win text-win font-black">✓</span>
                                 )}
                             </button>
                         );
@@ -248,8 +259,8 @@ export const MatchDetails = ({ matchId, onBack }) => {
     };
 
 
-    if (loading) return <div className="p-10 text-center text-white">Ładowanie meczu...</div>;
-    if (!match) return <div className="p-10 text-center text-white">Nie znaleziono meczu</div>;
+    if (loading) return <div className="p-10 text-center text-light">Ładowanie meczu...</div>;
+    if (!match) return <div className="p-10 text-center text-light">Nie znaleziono meczu</div>;
 
     const timeDisplay = (() => {
         if (match.status === 'ZAKONCZONY') return 'FT';
@@ -260,227 +271,294 @@ export const MatchDetails = ({ matchId, onBack }) => {
 
     return (
         <div className="relative">
-            <button onClick={onBack} className="mb-4 flex items-center gap-2 text-white/60 hover:text-white transition-colors">
+            <button onClick={() => navigate('/')} className="mb-4 flex items-center gap-2 text-muted hover:text-accent transition-colors font-medium">
                 ← Powrót
             </button>
 
             {/* Scoreboard */}
-            <div className="bg-secondary/50 backdrop-blur-xl rounded-2xl p-6 md:p-8 border border-accent/10 mb-6 text-center relative overflow-hidden">
+            <div className="bg-secondary/60 backdrop-blur-xl rounded-2xl p-6 md:p-8 border border-surface/30 mb-6 text-center relative overflow-hidden">
                  <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-accent to-transparent opacity-50"></div>
                  
                  <div className="text-sm font-bold text-accent mb-2 uppercase tracking-widest">{match.liga}</div>
-                 <div className="text-3xl md:text-5xl font-black text-white mb-2 flex justify-center items-center gap-4 md:gap-8">
-                     <span className="flex-1 text-right">{match.nazwa_gospodarza}</span>
-                     <span className="bg-dark/50 px-4 py-2 rounded-lg border border-white/10 text-accent shadow-[0_0_20px_rgba(255,255,255,0.1)]">
+                 <div className="text-2xl sm:text-3xl md:text-5xl font-black text-white mb-2 flex justify-center items-center gap-3 md:gap-8">
+                     <span className="flex-1 text-right truncate">{match.nazwa_gospodarza}</span>
+                     <span className="bg-dark/60 px-3 md:px-4 py-1 md:py-2 rounded-xl border border-surface/30 text-accent shadow-[0_0_20px_rgba(240,185,11,0.1)] flex-shrink-0">
                          {currentScore.home} : {currentScore.away}
                      </span>
-                     <span className="flex-1 text-left">{match.nazwa_goscia}</span>
+                     <span className="flex-1 text-left truncate">{match.nazwa_goscia}</span>
                  </div>
-                 <div className="text-light/60 font-mono text-lg animate-pulse">{timeDisplay}</div>
+                 <div className="text-muted font-mono text-lg animate-pulse">{timeDisplay}</div>
             </div>
 
-            {/* Stats & Timeline Grid */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Tabs Navigation */}
+            <div className="flex bg-dark/40 p-1 rounded-2xl border border-surface/30 mb-6 mx-auto max-w-2xl relative z-10">
+                <button 
+                  onClick={() => setActiveTab('typy')}
+                  className={`flex-1 px-4 py-2.5 md:py-3 rounded-xl text-xs sm:text-sm font-bold transition-all ${
+                    activeTab === 'typy'
+                      ? 'bg-gradient-to-r from-accent to-accent-hover text-dark shadow-lg' 
+                      : 'text-muted hover:text-light hover:bg-surface/30'
+                  }`}
+                >
+                  Typy
+                </button>
+                <button 
+                  onClick={() => setActiveTab('statystyki')}
+                  className={`flex-1 px-4 py-2.5 md:py-3 rounded-xl text-xs sm:text-sm font-bold transition-all ${
+                    activeTab === 'statystyki'
+                      ? 'bg-gradient-to-r from-accent to-accent-hover text-dark shadow-lg' 
+                      : 'text-muted hover:text-light hover:bg-surface/30'
+                  }`}
+                >
+                  Statystyki
+                </button>
+                <button 
+                  onClick={() => setActiveTab('live')}
+                  className={`flex-1 px-4 py-2.5 md:py-3 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-1.5 ${
+                    activeTab === 'live'
+                      ? 'bg-gradient-to-r from-accent to-accent-hover text-dark shadow-lg' 
+                      : 'text-muted hover:text-light hover:bg-surface/30'
+                  }`}
+                >
+                  {match.status === 'TRWA' && <span className={`w-2 h-2 rounded-full ${activeTab === 'live' ? 'bg-dark' : 'bg-live'} animate-pulse`}></span>}
+                  Relacja LIVE
+                </button>
+            </div>
+
+            {/* Tab Content */}
+            <div className="w-full max-w-4xl mx-auto pb-24">
                 
-                {/* Stats Column */}
-                <div className="lg:col-span-1 space-y-6">
-                     {/* Odds 1X2 */}
-                    <div className="bg-dark/30 rounded-2xl p-6 border border-white/5">
-                        <h4 className="text-white font-bold mb-4 flex items-center justify-between">
-                            <span>Kursy 1X2</span>
-                            <span className="text-[10px] uppercase tracking-widest text-emerald-400 animate-pulse">● LIVE</span>
-                        </h4>
-                         <div className="grid grid-cols-3 gap-2">
-                            {(oddsByRodzaj['1X2'] || []).map(odd => {
-                                const locked = isLocked(odd);
-                                const sel = isSelected(odd.id);
+                {/* TYPY TAB */}
+                {activeTab === 'typy' && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 lg:gap-6 animate-fade-in">
+                        <div className="space-y-4 lg:space-y-6">
+                            {/* Odds 1X2 */}
+                            <div className="bg-secondary/50 rounded-2xl p-5 border border-surface/30">
+                                <h4 className="text-white font-bold mb-4 flex items-center justify-between text-sm">
+                                    <span>Kursy 1X2</span>
+                                    {match.status === 'TRWA' && <span className="text-[10px] uppercase tracking-widest text-live animate-pulse">● LIVE</span>}
+                                </h4>
+                                <div className="grid grid-cols-3 gap-2">
+                                    {(oddsByRodzaj['1X2'] || []).map(odd => {
+                                        const locked = isLockedStatus(odd) || match.status === 'ZAKONCZONY';
+                                        const isWon = match.status === 'ZAKONCZONY' && odd.wynik === 'WYGRANY';
+                                        const sel = isSelected(odd.id);
+                                        return (
+                                            <button
+                                                key={odd.id}
+                                                disabled={locked}
+                                                onClick={() => handleBetClick(odd.typ, odd.id, odd.kurs, undefined, locked, '1X2')}
+                                                className={`p-3 rounded-xl border flex flex-col items-center transition-all relative ${
+                                                    isWon
+                                                    ? 'bg-win/20 text-win border-win shadow-[0_0_15px_rgba(34,197,94,0.2)]'
+                                                    : sel
+                                                    ? 'bg-accent/20 text-accent border-accent'
+                                                    : 'bg-surface/30 border-surface/50 hover:bg-surface/60 text-white'
+                                                } ${locked && !isWon ? 'opacity-60 cursor-not-allowed' : ''} ${odd.status === 'ZABLOKOWANY' ? 'animate-pulse' : ''}`}
+                                            >
+                                                <span className="text-xs opacity-60 font-bold mb-1">{odd.typ}</span>
+                                                <span className={`font-bold text-lg transition-colors duration-500 ${!isWon && trendClass(odd.id)}`}>{odd.kurs}</span>
+                                                {odd.status === 'ZABLOKOWANY' && !isWon && (
+                                                    <span className="absolute top-1 right-1 text-[10px] bg-dark/80 text-amber px-1.5 py-0.5 rounded font-bold">🔒</span>
+                                                )}
+                                                {isWon && (
+                                                    <span className="absolute -top-2 -right-2 text-sm bg-dark/80 rounded-full w-6 h-6 flex items-center justify-center border border-win text-win font-black">✓</span>
+                                                )}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+
+                            {/* Bet builder info */}
+                            {(() => {
+                                const myMatchBets = bets.filter(b => b.matchId === match.id);
+                                if (myMatchBets.length < 2) return null;
                                 return (
-                                    <button
-                                        key={odd.id}
-                                        disabled={locked}
-                                        onClick={() => handleBetClick(odd.typ, odd.id, odd.kurs, undefined, locked, '1X2')}
-                                        className={`p-3 rounded-xl border flex flex-col items-center transition-all relative ${
-                                            sel
-                                            ? 'bg-accent text-dark border-accent'
-                                            : 'bg-white/5 border-white/10 hover:bg-white/10 text-white'
-                                        } ${locked ? 'opacity-60 cursor-not-allowed animate-pulse' : ''}`}
-                                    >
-                                        <span className="text-xs opacity-60 font-bold mb-1">{odd.typ}</span>
-                                        <span className={`font-bold text-lg transition-colors duration-500 ${trendClass(odd.id)}`}>{odd.kurs}</span>
-                                        {locked && (
-                                            <span className="absolute top-1 right-1 text-[10px] bg-dark/80 text-amber-300 px-1.5 py-0.5 rounded font-bold">🔒</span>
-                                        )}
-                                    </button>
+                                    <div className="bg-gradient-to-r from-accent/15 to-accent-hover/10 border border-accent/30 rounded-2xl p-4 shadow-[0_0_15px_rgba(240,185,11,0.15)]">
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <span className="text-2xl">🎯</span>
+                                            <span className="font-black text-accent uppercase tracking-wider text-sm">Bet Builder</span>
+                                            <span className="bg-accent text-dark text-xs font-black px-2 py-0.5 rounded-full">x{myMatchBets.length}</span>
+                                        </div>
+                                        <p className="text-xs text-light/70">Zakłady z tego meczu zostaną złączone z rabatem korelacyjnym 20% (wszystkie muszą wejść).</p>
+                                    </div>
                                 );
-                            })}
+                            })()}
+                            
+                            {renderTwoWayMarket('Liczba bramek', 'OU_GOALS', 'OVER', 'UNDER', 'Powyżej', 'Poniżej')}
+                            {renderTwoWayMarket('Obie strzelą (BTTS)', 'BTTS', 'YES', 'NO', 'TAK', 'NIE')}
+                        </div>
+                        
+                        <div className="space-y-4 lg:space-y-6">
+                            {renderTwoWayMarket('Rzuty rożne', 'OU_CORNERS', 'OVER', 'UNDER', 'Powyżej', 'Poniżej')}
+                            {renderTwoWayMarket('Kartki', 'OU_CARDS', 'OVER', 'UNDER', 'Powyżej', 'Poniżej')}
+                            {renderTwoWayMarket('Celne strzały', 'OU_SOT', 'OVER', 'UNDER', 'Powyżej', 'Poniżej')}
+                            {renderTwoWayMarket('Spalone', 'OU_OFFSIDES', 'OVER', 'UNDER', 'Powyżej', 'Poniżej')}
+                            {renderHtft()}
                         </div>
                     </div>
+                )}
 
-                    {/* Bet builder info */}
-                    {(() => {
-                        const myMatchBets = bets.filter(b => b.matchId === match.id);
-                        if (myMatchBets.length < 2) return null;
-                        return (
-                            <div className="bg-gradient-to-r from-accent/20 to-emerald/20 border border-accent/40 rounded-2xl p-4">
-                                <div className="flex items-center gap-2 mb-1">
-                                    <span className="text-2xl">🎯</span>
-                                    <span className="font-black text-accent uppercase tracking-wider">Bet Builder</span>
-                                    <span className="bg-accent text-dark text-xs font-black px-2 py-0.5 rounded-full">x{myMatchBets.length}</span>
-                                </div>
-                                <p className="text-xs text-white/70">Zakłady z tego meczu zostaną złączone z rabatem korelacyjnym 20% (wszystkie muszą wejść).</p>
-                            </div>
-                        );
-                    })()}
+                {/* STATYSTYKI TAB */}
+                {activeTab === 'statystyki' && (
+                    <div className="animate-fade-in">
+                        {currentStats ? (
+                            <div className="bg-secondary/50 rounded-3xl p-6 md:p-8 border border-surface/30 shadow-2xl">
+                                <h4 className="text-white font-bold mb-8 text-lg md:text-xl text-center">Statystyki meczowe</h4>
+                                
+                                <div className="space-y-6 md:space-y-8 max-w-2xl mx-auto">
+                                    {/* Posiadanie piłki */}
+                                    <div>
+                                        <div className="flex justify-between text-sm md:text-base mb-2 font-medium">
+                                            <span className="text-info w-12 text-right">{Math.round(currentStats.posiadanie_gospodarz)}%</span>
+                                            <span className="text-muted uppercase tracking-wider text-xs md:text-sm pt-1">Posiadanie piłki</span>
+                                            <span className="text-live w-12 text-left">{Math.round(currentStats.posiadanie_gosc)}%</span>
+                                        </div>
+                                        <div className="h-3 md:h-4 bg-dark rounded-full overflow-hidden flex shadow-inner">
+                                            <div style={{ width: `${currentStats.posiadanie_gospodarz}%` }} className="bg-gradient-to-r from-info/60 to-info h-full transition-all duration-500" />
+                                            <div style={{ width: `${currentStats.posiadanie_gosc}%` }} className="bg-gradient-to-l from-live/60 to-live h-full transition-all duration-500" />
+                                        </div>
+                                    </div>
 
-                    {/* Liczba bramek (Over/Under) */}
-                    {renderTwoWayMarket('Liczba bramek', 'OU_GOALS', 'OVER', 'UNDER', 'Powyżej', 'Poniżej')}
+                                    {/* Strzały */}
+                                    <div>
+                                        <div className="flex justify-between text-sm md:text-base mb-2 font-medium">
+                                            <span className="text-white w-12 text-right">{currentStats.strzaly_gospodarz}</span>
+                                            <span className="text-muted uppercase tracking-wider text-xs md:text-sm pt-1">Strzały</span>
+                                            <span className="text-white w-12 text-left">{currentStats.strzaly_gosc}</span>
+                                        </div>
+                                        <div className="h-2.5 md:h-3 bg-dark rounded-full overflow-hidden flex shadow-inner">
+                                            <div style={{ width: `${(currentStats.strzaly_gospodarz / (currentStats.strzaly_gospodarz + currentStats.strzaly_gosc || 1)) * 100}%` }} className="bg-info h-full transition-all duration-500" />
+                                            <div style={{ width: `${(currentStats.strzaly_gosc / (currentStats.strzaly_gospodarz + currentStats.strzaly_gosc || 1)) * 100}%` }} className="bg-live h-full transition-all duration-500" />
+                                        </div>
+                                    </div>
 
-                    {/* BTTS - obie strzelą */}
-                    {renderTwoWayMarket('Obie strzelą (BTTS)', 'BTTS', 'YES', 'NO', 'TAK', 'NIE')}
+                                    {/* Strzały celne */}
+                                    <div>
+                                        <div className="flex justify-between text-sm md:text-base mb-2 font-medium">
+                                            <span className="text-white w-12 text-right">{currentStats.strzaly_celne_gospodarz}</span>
+                                            <span className="text-muted uppercase tracking-wider text-xs md:text-sm pt-1">Strzały celne</span>
+                                            <span className="text-white w-12 text-left">{currentStats.strzaly_celne_gosc}</span>
+                                        </div>
+                                        <div className="h-2.5 md:h-3 bg-dark rounded-full overflow-hidden flex shadow-inner">
+                                            <div style={{ width: `${(currentStats.strzaly_celne_gospodarz / (currentStats.strzaly_celne_gospodarz + currentStats.strzaly_celne_gosc || 1)) * 100}%` }} className="bg-info h-full transition-all duration-500" />
+                                            <div style={{ width: `${(currentStats.strzaly_celne_gosc / (currentStats.strzaly_celne_gospodarz + currentStats.strzaly_celne_gosc || 1)) * 100}%` }} className="bg-live h-full transition-all duration-500" />
+                                        </div>
+                                    </div>
 
-                    {/* Rzuty rożne (Over/Under) */}
-                    {renderTwoWayMarket('Rzuty rożne', 'OU_CORNERS', 'OVER', 'UNDER', 'Powyżej', 'Poniżej')}
-
-                    {/* Kartki (Over/Under) */}
-                    {renderTwoWayMarket('Kartki', 'OU_CARDS', 'OVER', 'UNDER', 'Powyżej', 'Poniżej')}
-
-                    {/* Strzały celne (Over/Under) */}
-                    {renderTwoWayMarket('Celne strzały', 'OU_SOT', 'OVER', 'UNDER', 'Powyżej', 'Poniżej')}
-
-                    {/* Spalone (Over/Under) */}
-                    {renderTwoWayMarket('Spalone', 'OU_OFFSIDES', 'OVER', 'UNDER', 'Powyżej', 'Poniżej')}
-
-                    {/* HT/FT */}
-                    {renderHtft()}
-
-                    {/* Live Stats */}
-                    {currentStats && (
-                        <div className="bg-dark/30 rounded-2xl p-6 border border-white/5">
-                             <h4 className="text-white font-bold mb-4">Statystyki na żywo</h4>
-                             
-                             <div className="space-y-4">
-                                 {/* Posiadanie piłki */}
-                                 <div>
-                                     <div className="flex justify-between text-xs text-white/60 mb-1">
-                                         <span className="font-bold text-blue">{Math.round(currentStats.posiadanie_gospodarz)}%</span>
-                                         <span>Posiadanie piłki</span>
-                                         <span className="font-bold text-rose">{Math.round(currentStats.posiadanie_gosc)}%</span>
-                                     </div>
-                                     <div className="h-3 bg-dark rounded-full overflow-hidden flex">
-                                         <div style={{ width: `${currentStats.posiadanie_gospodarz}%` }} className="bg-blue h-full transition-all duration-500" />
-                                         <div style={{ width: `${currentStats.posiadanie_gosc}%` }} className="bg-rose h-full transition-all duration-500" />
-                                     </div>
-                                 </div>
-
-                                 {/* Strzały */}
-                                 <div>
-                                     <div className="flex justify-between text-xs text-white/60 mb-1">
-                                         <span>{currentStats.strzaly_gospodarz}</span>
-                                         <span>Strzały</span>
-                                         <span>{currentStats.strzaly_gosc}</span>
-                                     </div>
-                                     <div className="h-2 bg-dark rounded-full overflow-hidden flex">
-                                         <div style={{ width: `${(currentStats.strzaly_gospodarz / (currentStats.strzaly_gospodarz + currentStats.strzaly_gosc || 1)) * 100}%` }} className="bg-blue h-full transition-all duration-500" />
-                                         <div style={{ width: `${(currentStats.strzaly_gosc / (currentStats.strzaly_gospodarz + currentStats.strzaly_gosc || 1)) * 100}%` }} className="bg-rose h-full transition-all duration-500" />
-                                     </div>
-                                 </div>
-
-                                 {/* Strzały celne */}
-                                 <div>
-                                     <div className="flex justify-between text-xs text-white/60 mb-1">
-                                         <span>{currentStats.strzaly_celne_gospodarz}</span>
-                                         <span>Strzały celne</span>
-                                         <span>{currentStats.strzaly_celne_gosc}</span>
-                                     </div>
-                                     <div className="h-2 bg-dark rounded-full overflow-hidden flex">
-                                         <div style={{ width: `${(currentStats.strzaly_celne_gospodarz / (currentStats.strzaly_celne_gospodarz + currentStats.strzaly_celne_gosc || 1)) * 100}%` }} className="bg-blue h-full transition-all duration-500" />
-                                         <div style={{ width: `${(currentStats.strzaly_celne_gosc / (currentStats.strzaly_celne_gospodarz + currentStats.strzaly_celne_gosc || 1)) * 100}%` }} className="bg-rose h-full transition-all duration-500" />
-                                     </div>
-                                 </div>
-
-                                 {/* Rzuty rożne */}
-                                 <div>
-                                     <div className="flex justify-between text-xs text-white/60 mb-1">
-                                         <span>{currentStats.rozne_gospodarz}</span>
-                                         <span>Rzuty rożne</span>
-                                         <span>{currentStats.rozne_gosc}</span>
-                                     </div>
-                                     <div className="h-2 bg-dark rounded-full overflow-hidden flex">
-                                         <div style={{ width: `${(currentStats.rozne_gospodarz / (currentStats.rozne_gospodarz + currentStats.rozne_gosc || 1)) * 100}%` }} className="bg-blue h-full transition-all duration-500" />
-                                         <div style={{ width: `${(currentStats.rozne_gosc / (currentStats.rozne_gospodarz + currentStats.rozne_gosc || 1)) * 100}%` }} className="bg-rose h-full transition-all duration-500" />
-                                     </div>
-                                 </div>
-                                 
-                                 {/* Faule */}
-                                 <div>
-                                     <div className="flex justify-between text-xs text-white/60 mb-1">
-                                         <span>{currentStats.faule_gospodarz}</span>
-                                         <span>Faule</span>
-                                         <span>{currentStats.faule_gosc}</span>
-                                     </div>
-                                     <div className="h-2 bg-dark rounded-full overflow-hidden flex">
-                                         <div style={{ width: `${(currentStats.faule_gospodarz / (currentStats.faule_gospodarz + currentStats.faule_gosc || 1)) * 100}%` }} className="bg-blue h-full transition-all duration-500" />
-                                         <div style={{ width: `${(currentStats.faule_gosc / (currentStats.faule_gospodarz + currentStats.faule_gosc || 1)) * 100}%` }} className="bg-rose h-full transition-all duration-500" />
-                                     </div>
-                                 </div>
-
-                                 {/* Żółte kartki */}
-                                 <div>
-                                     <div className="flex justify-between text-xs text-white/60 mb-1">
-                                         <span className="text-yellow-400">ŻK {currentStats.zolte_kartki_gospodarz}</span>
-                                         <span>Żółte kartki</span>
-                                         <span className="text-yellow-400">{currentStats.zolte_kartki_gosc} ŻK</span>
-                                     </div>
-                                 </div>
-
-                                 {/* Czerwone kartki */}
-                                 <div>
-                                     <div className="flex justify-between text-xs text-white/60 mb-1">
-                                         <span className="text-red-500">CK {currentStats.czerwone_kartki_gospodarz}</span>
-                                         <span>Czerwone kartki</span>
-                                         <span className="text-red-500">{currentStats.czerwone_kartki_gosc} CK</span>
-                                     </div>
-                                 </div>
-                             </div>
-                        </div>
-                    )}
-                </div>
-
-                {/* Timeline Column */}
-                <div className="lg:col-span-2 bg-secondary/30 backdrop-blur-md rounded-2xl p-6 border border-white/5 max-h-[600px] overflow-y-auto">
-                    <h4 className="text-white font-bold mb-6 flex items-center gap-2">
-                        <span className="animate-pulse text-rose-500">●</span> Relacja LIVE
-                    </h4>
-                    
-                    <div className="space-y-6 relative ml-4 border-l border-white/10 pl-8 md:pl-12 py-2">
-                        {timeline.length === 0 ? (
-                            <div className="text-white/40 italic">Mecz jeszcze się nie rozpoczął...</div>
-                        ) : (
-                            timeline.map((event, idx) => (
-                                <div key={idx} className="relative group">
-                                    <div className={`absolute -left-[45px] md:-left-[61px] top-0 w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs border-4 border-secondary transition-transform group-hover:scale-110 ${
-                                         event.komentarz.includes('GOOL') ? 'bg-accent text-dark' : 'bg-dark text-white/60'
-                                    }`}>
-                                        {event.minuta}'
+                                    {/* Rzuty rożne */}
+                                    <div>
+                                        <div className="flex justify-between text-sm md:text-base mb-2 font-medium">
+                                            <span className="text-white w-12 text-right">{currentStats.rozne_gospodarz}</span>
+                                            <span className="text-muted uppercase tracking-wider text-xs md:text-sm pt-1">Rzuty rożne</span>
+                                            <span className="text-white w-12 text-left">{currentStats.rozne_gosc}</span>
+                                        </div>
+                                        <div className="h-2.5 md:h-3 bg-dark rounded-full overflow-hidden flex shadow-inner">
+                                            <div style={{ width: `${(currentStats.rozne_gospodarz / (currentStats.rozne_gospodarz + currentStats.rozne_gosc || 1)) * 100}%` }} className="bg-info h-full transition-all duration-500" />
+                                            <div style={{ width: `${(currentStats.rozne_gosc / (currentStats.rozne_gospodarz + currentStats.rozne_gosc || 1)) * 100}%` }} className="bg-live h-full transition-all duration-500" />
+                                        </div>
                                     </div>
                                     
-                                    <div className={`rounded-xl p-4 transition-all ${
-                                        event.komentarz.includes('GOOL') 
-                                        ? 'bg-gradient-to-r from-accent/20 to-transparent border border-accent/20' 
-                                        : 'bg-white/5 border border-white/5'
-                                    }`}>
-                                         {event.komentarz.includes('GOOL') && (
-                                             <div className="text-accent font-black text-sm mb-1 uppercase tracking-wider">GOOL!</div>
-                                         )}
-                                         <p className="text-white/90 text-sm leading-relaxed">{event.komentarz}</p>
-                                         <div className="mt-2 text-xs font-mono text-white/40">Wynik: {event.wynik}</div>
+                                    {/* Faule */}
+                                    <div>
+                                        <div className="flex justify-between text-sm md:text-base mb-2 font-medium">
+                                            <span className="text-white w-12 text-right">{currentStats.faule_gospodarz}</span>
+                                            <span className="text-muted uppercase tracking-wider text-xs md:text-sm pt-1">Faule</span>
+                                            <span className="text-white w-12 text-left">{currentStats.faule_gosc}</span>
+                                        </div>
+                                        <div className="h-2.5 md:h-3 bg-dark rounded-full overflow-hidden flex shadow-inner">
+                                            <div style={{ width: `${(currentStats.faule_gospodarz / (currentStats.faule_gospodarz + currentStats.faule_gosc || 1)) * 100}%` }} className="bg-info h-full transition-all duration-500" />
+                                            <div style={{ width: `${(currentStats.faule_gosc / (currentStats.faule_gospodarz + currentStats.faule_gosc || 1)) * 100}%` }} className="bg-live h-full transition-all duration-500" />
+                                        </div>
+                                    </div>
+
+                                    {/* Kartki */}
+                                    <div className="pt-4 mt-4 border-t border-surface/20">
+                                        <div className="flex justify-around">
+                                            <div className="flex flex-col items-center gap-2">
+                                                <span className="text-xs text-muted uppercase">Gospodarze</span>
+                                                <div className="flex gap-4">
+                                                    <div className="flex items-center gap-1">
+                                                        <div className="w-3.5 h-5 bg-amber rounded-sm shadow-[0_0_8px_rgba(251,191,36,0.3)]"></div>
+                                                        <span className="font-bold text-white ml-1">{currentStats.zolte_kartki_gospodarz}</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-1">
+                                                        <div className="w-3.5 h-5 bg-lose rounded-sm shadow-[0_0_8px_rgba(239,68,68,0.3)]"></div>
+                                                        <span className="font-bold text-white ml-1">{currentStats.czerwone_kartki_gospodarz}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            
+                                            <div className="w-px bg-surface/30 h-10"></div>
+                                            
+                                            <div className="flex flex-col items-center gap-2">
+                                                <span className="text-xs text-muted uppercase">Goście</span>
+                                                <div className="flex gap-4">
+                                                    <div className="flex items-center gap-1">
+                                                        <div className="w-3.5 h-5 bg-amber rounded-sm shadow-[0_0_8px_rgba(251,191,36,0.3)]"></div>
+                                                        <span className="font-bold text-white ml-1">{currentStats.zolte_kartki_gosc}</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-1">
+                                                        <div className="w-3.5 h-5 bg-lose rounded-sm shadow-[0_0_8px_rgba(239,68,68,0.3)]"></div>
+                                                        <span className="font-bold text-white ml-1">{currentStats.czerwone_kartki_gosc}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
-                            ))
+                            </div>
+                        ) : (
+                            <div className="text-center text-muted p-12 bg-secondary/30 rounded-3xl border border-surface/30">
+                                <span className="text-4xl block mb-4 opacity-50">📊</span>
+                                Brak dostępnych statystyk z tego spotkania.
+                            </div>
                         )}
                     </div>
-                </div>
+                )}
 
+                {/* RELACJA LIVE TAB */}
+                {activeTab === 'live' && (
+                    <div className="bg-secondary/30 backdrop-blur-md rounded-3xl p-6 md:p-8 border border-surface/30 max-h-[700px] overflow-y-auto animate-fade-in shadow-2xl">
+                        <div className="space-y-6 relative ml-4 md:ml-10 border-l-2 border-surface/30 pl-8 md:pl-12 py-2">
+                            {timeline.length === 0 ? (
+                                <div className="text-muted italic flex items-center gap-3">
+                                    <span className="text-2xl">⏳</span>
+                                    Mecz jeszcze się nie rozpoczął lub brak wydarzeń...
+                                </div>
+                            ) : (
+                                timeline.map((event, idx) => (
+                                    <div key={idx} className="relative group">
+                                        <div className={`absolute -left-[45px] md:-left-[63px] top-0 w-8 md:w-10 h-8 md:h-10 rounded-full flex items-center justify-center font-bold text-xs md:text-sm border-4 border-secondary shadow-lg transition-transform group-hover:scale-110 ${
+                                             event.komentarz.includes('GOOL') ? 'bg-accent text-dark border-accent/20' : 'bg-surface text-muted border-surface/20'
+                                        }`}>
+                                            {event.minuta}'
+                                        </div>
+                                        
+                                        <div className={`rounded-2xl p-5 md:p-6 transition-all ${
+                                            event.komentarz.includes('GOOL') 
+                                            ? 'bg-gradient-to-r from-accent/15 to-transparent border border-accent/30 shadow-[0_0_20px_rgba(240,185,11,0.1)]' 
+                                            : 'bg-surface/20 border border-surface/20 hover:bg-surface/30 hover:border-surface/40'
+                                        }`}>
+                                             {event.komentarz.includes('GOOL') && (
+                                                 <div className="text-accent font-black text-sm mb-2 uppercase tracking-wider flex items-center gap-2">
+                                                     <span>⚽</span> GOOL!
+                                                 </div>
+                                             )}
+                                             <p className={`text-sm md:text-base leading-relaxed ${event.komentarz.includes('GOOL') ? 'text-white font-bold' : 'text-light'}`}>
+                                                 {event.komentarz}
+                                             </p>
+                                             <div className="mt-3 inline-block bg-dark/50 px-3 py-1 rounded-lg text-xs font-mono text-muted border border-surface/30 shadow-inner">
+                                                 Wynik: <span className={event.komentarz.includes('GOOL') ? 'text-accent font-bold' : 'text-white'}>{event.wynik}</span>
+                                             </div>
+                                        </div>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );

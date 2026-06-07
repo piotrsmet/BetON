@@ -6,7 +6,7 @@ export const LoginAnimation = ({ onComplete }) => {
   const [logoScale, setLogoScale] = useState(0);
 
   useEffect(() => {
-    // Purple particles explosion
+    // Gold particles explosion
     const particlesArray = Array.from({ length: 50 }, (_, i) => ({
       id: i,
       angle: (i / 50) * 360,
@@ -35,7 +35,7 @@ export const LoginAnimation = ({ onComplete }) => {
   }, [onComplete]);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-gradient-to-br from-primary via-secondary to-primary overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-gradient-to-br from-primary via-dark to-primary overflow-hidden">
       {/* Expanding rings */}
       {rings.map((ring) => (
         <div
@@ -47,7 +47,7 @@ export const LoginAnimation = ({ onComplete }) => {
         />
       ))}
 
-      {/* Purple particles */}
+      {/* Gold particles */}
       {particles.map((particle) => (
         <div
           key={particle.id}
@@ -59,7 +59,7 @@ export const LoginAnimation = ({ onComplete }) => {
             animationDuration: `${particle.duration}s`,
             '--angle': `${particle.angle}deg`,
             '--distance': `${particle.distance}px`,
-            boxShadow: '0 0 20px rgba(155, 126, 189, 0.8)',
+            boxShadow: '0 0 20px rgba(240, 185, 11, 0.8)',
           }}
         />
       ))}
@@ -72,10 +72,10 @@ export const LoginAnimation = ({ onComplete }) => {
           opacity: logoScale,
         }}
       >
-        <div className="text-7xl md:text-8xl font-black mb-6 bg-gradient-to-r from-accent via-purple-400 to-accent bg-clip-text text-transparent animate-pulse">
+        <div className="text-7xl md:text-8xl font-black mb-6 bg-gradient-to-r from-accent via-amber to-accent bg-clip-text text-transparent animate-pulse">
           BetON
         </div>
-        <div className="px-8 py-4 bg-accent/20 backdrop-blur-lg rounded-2xl border-2 border-accent shadow-[0_0_40px_rgba(155,126,189,0.5)]">
+        <div className="px-8 py-4 bg-accent/15 backdrop-blur-lg rounded-2xl border-2 border-accent/40 shadow-[0_0_40px_rgba(240,185,11,0.3)]">
           <p className="text-2xl md:text-3xl font-bold text-accent animate-pulse">
             BE BE BE BETON!!
           </p>
@@ -83,7 +83,7 @@ export const LoginAnimation = ({ onComplete }) => {
       </div>
 
       {/* Glow effects */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-accent/30 rounded-full blur-[120px] animate-pulse" />
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-accent/20 rounded-full blur-[120px] animate-pulse" />
     </div>
   );
 };

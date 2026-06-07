@@ -1,7 +1,8 @@
 import axios from 'axios';
 import prisma from '../prisma.js';
 
-const AI_LIVE_URL = 'http://localhost:8000/odds/live';
+const AI_BASE = process.env.AI_BASE_URL || 'http://localhost:8000';
+const AI_LIVE_URL = `${AI_BASE}/odds/live`;
 
 // Cykl: kurs zmienia się co `UPDATE_INTERVAL_MS`, blokowany `LOCK_BEFORE_MS` przed kolejną zmianą.
 const UPDATE_INTERVAL_MS = 30 * 1000;
