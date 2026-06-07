@@ -184,60 +184,60 @@ def _generate_minute_by_minute(home_team: str, away_team: str,
 
             if rand < goal_chance:
                 if random.random() < home_strength:
-                home_score += 1
-                home_shots_ot += 1
-                home_shots += 1
-                commentary = random.choice(commentaries["goal_home"])
-                events.append(MatchEvent(minute=minute, event_type=MatchEventType.GOAL,
-                                         team=home_team, description=f"Gol dla {home_team}!"))
+                    home_score += 1
+                    home_shots_ot += 1
+                    home_shots += 1
+                    commentary = random.choice(commentaries["goal_home"])
+                    events.append(MatchEvent(minute=minute, event_type=MatchEventType.GOAL,
+                                             team=home_team, description=f"Gol dla {home_team}!"))
                 else:
-                away_score += 1
-                away_shots_ot += 1
-                away_shots += 1
-                commentary = random.choice(commentaries["goal_away"])
-                events.append(MatchEvent(minute=minute, event_type=MatchEventType.GOAL,
-                                         team=away_team, description=f"Gol dla {away_team}!"))
+                    away_score += 1
+                    away_shots_ot += 1
+                    away_shots += 1
+                    commentary = random.choice(commentaries["goal_away"])
+                    events.append(MatchEvent(minute=minute, event_type=MatchEventType.GOAL,
+                                             team=away_team, description=f"Gol dla {away_team}!"))
             elif rand < 0.15:
                 if random.random() < home_strength:
-                home_shots += 1
+                    home_shots += 1
                     if random.random() < 0.4:
-                    home_shots_ot += 1
-                commentary = random.choice(commentaries["attack_home"])
+                        home_shots_ot += 1
+                    commentary = random.choice(commentaries["attack_home"])
                 else:
-                away_shots += 1
+                    away_shots += 1
                     if random.random() < 0.4:
-                    away_shots_ot += 1
-                commentary = random.choice(commentaries["attack_away"])
+                        away_shots_ot += 1
+                    commentary = random.choice(commentaries["attack_away"])
             elif rand < 0.22:
                 if random.random() < home_strength:
-                home_corners += 1
+                    home_corners += 1
                 else:
-                away_corners += 1
+                    away_corners += 1
                 commentary = "Rzut rożny."
             elif rand < 0.30:
                 if random.random() < 0.5:
-                home_fouls += 1
+                    home_fouls += 1
                 else:
                     away_fouls += 1
                 commentary = "Faul w środku pola."
                 if random.random() < 0.2:
                     if home_fouls > away_fouls:
-                    home_yellows += 1
-                    events.append(MatchEvent(minute=minute, event_type=MatchEventType.YELLOW_CARD,
-                                             team=home_team, description="Żółta kartka"))
+                        home_yellows += 1
+                        events.append(MatchEvent(minute=minute, event_type=MatchEventType.YELLOW_CARD,
+                                                 team=home_team, description="Żółta kartka"))
                     else:
-                    away_yellows += 1
-                    events.append(MatchEvent(minute=minute, event_type=MatchEventType.YELLOW_CARD,
-                                             team=away_team, description="Żółta kartka"))
+                        away_yellows += 1
+                        events.append(MatchEvent(minute=minute, event_type=MatchEventType.YELLOW_CARD,
+                                                 team=away_team, description="Żółta kartka"))
             elif rand < 0.36:
                 if random.random() < home_strength:
-                home_offsides += 1
-                events.append(MatchEvent(minute=minute, event_type=MatchEventType.OFFSIDE,
-                                         team=home_team, description="Spalony"))
+                    home_offsides += 1
+                    events.append(MatchEvent(minute=minute, event_type=MatchEventType.OFFSIDE,
+                                             team=home_team, description="Spalony"))
                 else:
-                away_offsides += 1
-                events.append(MatchEvent(minute=minute, event_type=MatchEventType.OFFSIDE,
-                                         team=away_team, description="Spalony"))
+                    away_offsides += 1
+                    events.append(MatchEvent(minute=minute, event_type=MatchEventType.OFFSIDE,
+                                             team=away_team, description="Spalony"))
                 commentary = "Sędzia liniowy podnosi chorągiewkę - spalony!"
             else:
                 commentary = random.choice(commentaries["boring"])
