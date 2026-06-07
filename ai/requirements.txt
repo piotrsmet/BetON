@@ -1,34 +1,6 @@
-# Core
 fastapi
 uvicorn[standard]
 pydantic
 pydantic-settings
-
-# LLM
-openai
-google-generativeai
-
-# RAG & Embeddings
-sentence-transformers
-faiss-cpu
-numpy
-
-# Data Processing
-pandas
-openpyxl
-
-# Security & Validation
-python-jose[cryptography]
-httpx
-requests
-
-# Testing
-pytest
-pytest-asyncio
-pytest-cov
-
-# Utilities
 python-dotenv
-python-multipart
-tenacity
 structlog

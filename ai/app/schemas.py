@@ -1,6 +1,5 @@
 """
-Pydantic schemas dla walidacji danych wejściowych/wyjściowych
-JSON Schema dla function-calling z pełną walidacją
+Pydantic schemas - walidacja wejścia/wyjścia API.
 """
 from pydantic import BaseModel, Field, field_validator, ConfigDict
 from typing import Optional, List, Literal
@@ -10,11 +9,10 @@ import re
 
 
 # =============================================================================
-# Enums
+# Match domain
 # =============================================================================
 
 class MatchEventType(str, Enum):
-    """Typy zdarzeń meczowych"""
     GOAL = "goal"
     YELLOW_CARD = "yellow_card"
     RED_CARD = "red_card"
@@ -32,27 +30,13 @@ class MatchEventType(str, Enum):
     KICK_OFF = "kick_off"
 
 
-class ToolName(str, Enum):
-    """Dozwolone narzędzia"""
-    GENERATE_MATCH_SIMULATION = "generate_match_simulation"
-    GET_TEAM_STATS = "get_team_stats"
-    SEARCH_MATCHES = "search_matches"
-    CALCULATE_ODDS = "calculate_odds"
-    GET_HISTORICAL_DATA = "get_historical_data"
-
-
-# =============================================================================
-# Match Event Schemas
-# =============================================================================
-
 class MatchEvent(BaseModel):
-    """Pojedyncze zdarzenie w meczu"""
-    minute: int = Field(..., ge=0, le=120, description="Minuta meczu (0-120)")
+    minute: int = Field(..., ge=0, le=120)
     event_type: MatchEventType
     team: Optional[str] = Field(None, max_length=50)
     player: Optional[str] = Field(None, max_length=100)
     description: str = Field(..., max_length=500)
-    
+
     model_config = ConfigDict(use_enum_values=True)
 
 
@@ -65,8 +49,8 @@ class MatchMinuteData(BaseModel):
     away_possession: float = Field(..., ge=0, le=100)
     commentary: str = Field(..., max_length=1000)
     events: List[MatchEvent] = Field(default_factory=list)
-    
-    # Statystyki bieżące
+
+    # Statystyki narastające
     home_shots: int = Field(0, ge=0, le=50)
     away_shots: int = Field(0, ge=0, le=50)
     home_shots_on_target: int = Field(0, ge=0, le=30)
@@ -84,39 +68,42 @@ class MatchMinuteData(BaseModel):
 
 
 class PreMatchOdds(BaseModel):
-    """Kursy przedmeczowe"""
+    """Kursy przedmeczowe dla wszystkich obsługiwanych rynków."""
+    # 1X2
     home_win: float = Field(..., gt=1.0, le=100.0)
     draw: float = Field(..., gt=1.0, le=100.0)
     away_win: float = Field(..., gt=1.0, le=100.0)
+
+    # Over/Under bramek
     over_2_5: float = Field(..., gt=1.0, le=50.0)
     under_2_5: float = Field(..., gt=1.0, le=50.0)
+    goals_line: float = Field(2.5, ge=0.5, le=6.5)
+
+    # BTTS
     btts_yes: float = Field(..., gt=1.0, le=20.0)
     btts_no: float = Field(..., gt=1.0, le=20.0)
 
-    # Liczba bramek - dodatkowe linie
-    goals_line: float = Field(2.5, ge=0.5, le=6.5, description="Linia Over/Under bramek")
-
-    # Rzuty rożne (corners)
-    corners_line: float = Field(9.5, ge=2.5, le=20.5, description="Linia Over/Under rzutów rożnych")
+    # Rzuty rożne
+    corners_line: float = Field(9.5, ge=2.5, le=20.5)
     corners_over: float = Field(1.9, gt=1.0, le=20.0)
     corners_under: float = Field(1.9, gt=1.0, le=20.0)
 
-    # Kartki (yellow + red counted as 1 each)
-    cards_line: float = Field(4.5, ge=0.5, le=15.5, description="Linia Over/Under kartek")
+    # Kartki
+    cards_line: float = Field(4.5, ge=0.5, le=15.5)
     cards_over: float = Field(1.9, gt=1.0, le=20.0)
     cards_under: float = Field(1.9, gt=1.0, le=20.0)
 
-    # Celne strzały (shots on target)
-    sot_line: float = Field(8.5, ge=0.5, le=30.5, description="Linia Over/Under celnych strzałów")
+    # Celne strzały
+    sot_line: float = Field(8.5, ge=0.5, le=30.5)
     sot_over: float = Field(1.9, gt=1.0, le=20.0)
     sot_under: float = Field(1.9, gt=1.0, le=20.0)
 
-    # Spalone (offsides)
-    offsides_line: float = Field(3.5, ge=0.5, le=20.5, description="Linia Over/Under spalonych")
+    # Spalone
+    offsides_line: float = Field(3.5, ge=0.5, le=20.5)
     offsides_over: float = Field(1.9, gt=1.0, le=20.0)
     offsides_under: float = Field(1.9, gt=1.0, le=20.0)
 
-    # HT/FT (9 kombinacji)
+    # HT/FT
     htft_1_1: float = Field(4.5, gt=1.0, le=100.0)
     htft_1_x: float = Field(15.0, gt=1.0, le=200.0)
     htft_1_2: float = Field(35.0, gt=1.0, le=500.0)
@@ -127,35 +114,27 @@ class PreMatchOdds(BaseModel):
     htft_2_x: float = Field(16.0, gt=1.0, le=200.0)
     htft_2_2: float = Field(5.5, gt=1.0, le=100.0)
 
-    # Asian Handicap
+    # Asian Handicap (zostawione, AI ustawia neutralnie)
     asian_handicap_line: float = Field(0.0, ge=-5.0, le=5.0)
     asian_handicap_home: float = Field(1.9, gt=1.0, le=10.0)
     asian_handicap_away: float = Field(1.9, gt=1.0, le=10.0)
 
 
 class MatchSimulation(BaseModel):
-    """Pełna symulacja meczu w formacie JSON"""
+    """Pełna symulacja meczu zwracana z /generate/match."""
     match_id: str = Field(..., max_length=50)
     home_team: str = Field(..., max_length=50)
     away_team: str = Field(..., max_length=50)
-    date: str = Field(..., description="Data meczu YYYY-MM-DD")
-    kick_off_time: str = Field(..., description="Godzina rozpoczęcia HH:MM")
+    date: str = Field(..., description="YYYY-MM-DD")
+    kick_off_time: str = Field(..., description="HH:MM")
     stadium: Optional[str] = Field(None, max_length=100)
     referee: Optional[str] = Field(None, max_length=100)
-    
-    # Kursy przedmeczowe
     pre_match_odds: PreMatchOdds
-    
-    # Minuta po minucie
     minutes: List[MatchMinuteData] = Field(..., min_length=1)
-    
-    # Wynik końcowy
     final_score_home: int = Field(..., ge=0, le=20)
     final_score_away: int = Field(..., ge=0, le=20)
-    
-    # Metadata
     generated_at: str = Field(default_factory=lambda: datetime.now().isoformat())
-    
+
     @field_validator("date")
     @classmethod
     def validate_date(cls, v: str) -> str:
@@ -164,7 +143,7 @@ class MatchSimulation(BaseModel):
         except ValueError:
             raise ValueError("Data musi być w formacie YYYY-MM-DD")
         return v
-    
+
     @field_validator("kick_off_time")
     @classmethod
     def validate_time(cls, v: str) -> str:
@@ -174,34 +153,15 @@ class MatchSimulation(BaseModel):
 
 
 # =============================================================================
-# API Request/Response Schemas
+# Requests / Responses
 # =============================================================================
 
-class AskRequest(BaseModel):
-    """Request dla endpointu /ask"""
-    question: str = Field(..., min_length=1, max_length=2000)
-    k: int = Field(5, ge=1, le=20, description="Liczba dokumentów do retrieval")
-    mode: Literal["api", "local"] = Field("local", description="Tryb LLM")
-    use_functions: bool = Field(True, description="Czy używać function-calling")
-    
-    @field_validator("question")
-    @classmethod
-    def sanitize_question(cls, v: str) -> str:
-        # Usuwanie potencjalnie niebezpiecznych znaków
-        v = v.strip()
-        # Blokada path traversal
-        if ".." in v or "~" in v:
-            raise ValueError("Niedozwolone znaki w pytaniu")
-        return v
-
-
 class GenerateMatchRequest(BaseModel):
-    """Request do generowania symulacji meczu"""
     home_team: str = Field(..., min_length=1, max_length=50)
     away_team: str = Field(..., min_length=1, max_length=50)
-    date: Optional[str] = Field(None, description="Data meczu YYYY-MM-DD")
-    use_historical_data: bool = Field(True, description="Czy bazować na danych historycznych")
-    
+    date: Optional[str] = Field(None)
+    use_historical_data: bool = Field(True)
+
     @field_validator("home_team", "away_team")
     @classmethod
     def sanitize_team_name(cls, v: str) -> str:
@@ -211,13 +171,8 @@ class GenerateMatchRequest(BaseModel):
         return v
 
 
-class GenerateBatchRequest(BaseModel):
-    """Request do generowania wielu meczów"""
-    matches: List[GenerateMatchRequest] = Field(..., min_length=1, max_length=10)
-
-
 class LiveOddsRequest(BaseModel):
-    """Request do przeliczenia kursów na żywo na podstawie aktualnego stanu meczu"""
+    """Wejście do /odds/live - aktualny stan meczu na potrzeby przeliczenia kursów."""
     home_team: str = Field(..., max_length=50)
     away_team: str = Field(..., max_length=50)
     minute: int = Field(..., ge=0, le=120)
@@ -240,145 +195,8 @@ class LiveOddsRequest(BaseModel):
     offsides_line: float = Field(3.5, ge=0.5, le=30.5)
 
 
-class ToolCallRequest(BaseModel):
-    """Request do wywołania narzędzia"""
-    tool_name: ToolName
-    arguments: dict = Field(default_factory=dict)
-
-
 class APIResponse(BaseModel):
-    """Standardowa odpowiedź API"""
     status: Literal["ok", "error"]
     data: Optional[dict] = None
     error: Optional[str] = None
     meta: Optional[dict] = None
-
-
-class ErrorResponse(BaseModel):
-    """Odpowiedź błędu"""
-    status: Literal["error"] = "error"
-    error_type: Literal["validation_error", "timeout", "tool_error", "security_blocked"]
-    message: str
-    details: Optional[dict] = None
-
-
-# =============================================================================
-# Function-calling Schemas (JSON Schema format)
-# =============================================================================
-
-FUNCTION_SCHEMAS = [
-    {
-        "name": "generate_match_simulation",
-        "description": "Generuje pełną symulację meczu piłkarskiego z komentarzami minuta po minucie",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "home_team": {
-                    "type": "string",
-                    "description": "Nazwa drużyny gospodarzy",
-                    "maxLength": 50
-                },
-                "away_team": {
-                    "type": "string",
-                    "description": "Nazwa drużyny gości",
-                    "maxLength": 50
-                },
-                "date": {
-                    "type": "string",
-                    "description": "Data meczu w formacie YYYY-MM-DD",
-                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
-                },
-                "use_historical_data": {
-                    "type": "boolean",
-                    "description": "Czy bazować na danych historycznych",
-                    "default": True
-                }
-            },
-            "required": ["home_team", "away_team"]
-        }
-    },
-    {
-        "name": "get_team_stats",
-        "description": "Pobiera statystyki drużyny z bazy danych historycznych",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "team_name": {
-                    "type": "string",
-                    "description": "Nazwa drużyny",
-                    "maxLength": 50
-                },
-                "season": {
-                    "type": "string",
-                    "description": "Sezon (np. 2023-2024)",
-                    "pattern": "^\\d{4}-\\d{4}$"
-                }
-            },
-            "required": ["team_name"]
-        }
-    },
-    {
-        "name": "search_matches",
-        "description": "Wyszukuje mecze w bazie danych",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "query": {
-                    "type": "string",
-                    "description": "Zapytanie wyszukiwania",
-                    "maxLength": 200
-                },
-                "top_k": {
-                    "type": "integer",
-                    "description": "Liczba wyników",
-                    "minimum": 1,
-                    "maximum": 20,
-                    "default": 5
-                }
-            },
-            "required": ["query"]
-        }
-    },
-    {
-        "name": "calculate_odds",
-        "description": "Oblicza kursy na podstawie statystyk drużyn",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "home_team": {
-                    "type": "string",
-                    "maxLength": 50
-                },
-                "away_team": {
-                    "type": "string",
-                    "maxLength": 50
-                }
-            },
-            "required": ["home_team", "away_team"]
-        }
-    },
-    {
-        "name": "get_historical_data",
-        "description": "Pobiera historyczne dane meczów między dwoma drużynami",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "team1": {
-                    "type": "string",
-                    "maxLength": 50
-                },
-                "team2": {
-                    "type": "string",
-                    "maxLength": 50
-                },
-                "limit": {
-                    "type": "integer",
-                    "minimum": 1,
-                    "maximum": 50,
-                    "default": 10
-                }
-            },
-            "required": ["team1", "team2"]
-        }
-    }
-]
